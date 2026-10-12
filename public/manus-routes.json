@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "path": "/", "title": "Phylax — The shift guardrail" },
+    { "path": "/app", "title": "Phylax Shift Board" }
+  ]
+}
