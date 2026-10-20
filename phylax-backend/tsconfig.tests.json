@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["shared/**/*", "server/**/*"],
+  "exclude": ["node_modules", "dist", "build"],
+  "compilerOptions": { "incremental": false }
+}

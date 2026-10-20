@@ -1,0 +1,44 @@
+{
+  "name": "phylax-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "NODE_ENV=development PORT=3100 COOKIE_SECURE=false node --env-file-if-exists=.env --import tsx --watch server/index.ts",
+    "build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist --alias:@shared=./shared && node scripts/copy-migrations.mjs",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env dist/index.js",
+    "migrate": "node --env-file-if-exists=.env --import tsx server/migrate.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
+    "lint": "eslint . --max-warnings 0",
+    "audit": "npm audit --audit-level=high --omit=dev",
+    "backup": "bash deploy/backup.sh",
+    "restore": "bash deploy/restore.sh",
+    "deploy": "bash deploy/redeploy.sh",
+    "shellcheck": "bash -c 'command -v shellcheck >/dev/null || { echo \"shellcheck not installed; skipping\"; exit 0; }; find deploy scripts -name \"*.sh\" -print0 | xargs -0 -n1 shellcheck --severity=warning'"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "^13.3.3",
+    "express": "^4.21.2",
+    "nodemailer": "^10.1.2",
+    "pg": "^8.23.1",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/express": "4.17.21",
+    "@types/node": "^24.7.0",
+    "@types/pg": "^8.23.1",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "tsx": "^4.19.1",
+    "typescript": "5.6.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^4.1.12"
+  }
+}

@@ -1,0 +1,100 @@
+[Unit]
+Description=Phylax — the shift conflict checker
+After=network-online.target postgresql.service
+# A service that restarts often should be allowed to restart often. The old values (5 starts in 120s) meant a
+# handful of quick crashes — a bad environment file, say — wedged the unit in `failed` state, and from then on
+# NOTHING would bring it back: not a reboot, not a deploy, not a redeploy script. Only a human could. These are
+# generous enough that a real crash loop is still visible in the journal, and a slow leak of restarts does not
+# leave the service permanently dead.
+StartLimitIntervalSec=300
+StartLimitBurst=20
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=phylax
+Group=phylax
+WorkingDirectory=/opt/phylax/current
+# The app env is parsed by the shared strict Node parser, not systemd's EnvironmentFile parser. Root scripts call
+# the same deploy/env.mjs through deploy/lib.sh; neither parser can execute `$`, shell operators, or substitutions.
+# The service role is DML-only: schema changes run explicitly under the root-only migrator.env credential during
+# redeploy, never on application boot.
+Environment=PHYLAX_ENV_FILE=/etc/phylax/phylax.env
+ExecStart=/usr/bin/node /opt/phylax/current/deploy/env-runner.mjs --no-migrate
+
+# scrypt runs on libuv's thread pool, and the default pool is four threads that Node also uses for DNS and file
+# I/O. At N=2^17 each hash holds a thread for the best part of a second, so the default pool means the third
+# concurrent sign-in — or a password change during a sign-in — queues behind work it has nothing to do with. The
+# app bounds its own concurrency (server/auth/passwords.ts, MAX_CONCURRENT_KDF=2) so this is not a security knob,
+# it is headroom so that bounded queue never becomes the thing a person waits on. Four extra threads, inside the
+# CPUQuota below.
+Environment=UV_THREADPOOL_SIZE=8
+
+# The server shuts down gracefully on SIGTERM: it stops taking requests, lets the reminder it is sending finish,
+# and closes the database pool. Give it room to do that.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+Restart=always
+RestartSec=5
+
+# The watchdog. The app pings this only while its scheduler is completing ticks, so a process whose event loop is
+# wedged — one that cannot even run its own hang guard — is restarted rather than left answering 503 forever.
+#
+# NotifyAccess MUST be `all`, and with `main` this unit restarted the service every two minutes forever.
+#
+# The app cannot send the ping itself: systemd's notify socket is a unix DATAGRAM socket, and Node's `dgram`
+# module only implements UDP — `createSocket("unix_datagram")` throws ERR_SOCKET_BAD_TYPE. So server/watchdog.ts
+# spawns `systemd-notify WATCHDOG=1` as a CHILD process every 30 seconds. `NotifyAccess=main` accepts notify
+# datagrams from the main process only and silently discards the rest, so every single ping was dropped: systemd
+# saw a service that never once reported being alive, hit WatchdogSec=120, killed it, and restarted it. A
+# perfectly healthy process, killed every two minutes, with the only clue being
+# `journalctl -u phylax` showing "Watchdog timeout" between otherwise clean start/stop cycles.
+#
+# `all` accepts datagrams from any process in the unit's cgroup, which is what a spawned helper is. That is not a
+# loosening of anything real here: the unit runs as a dedicated non-login user with an empty
+# CapabilityBoundingSet, there is no other process in the cgroup, and nothing outside the unit can reach the
+# socket. `Type=` stays `simple` on purpose — `notify` would make systemd wait for READY=1 from the main process,
+# which this app can never send for the same dgram reason, so the unit would fail to start at all.
+WatchdogSec=120
+NotifyAccess=all
+
+
+# ---- hardening -------------------------------------------------------------------------------
+# The service needs to read its own directory and write to its log directory, and nothing else.
+UMask=0077
+TasksMax=256
+MemoryMax=2G
+CPUQuota=180%
+CapabilityBoundingSet=
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# The app listens on 127.0.0.1 and is reached through the reverse proxy.
+# (If the proxy is not used, set this to 0.0.0.0 and open the port in the firewall instead.)
+ReadWritePaths=/opt/phylax/shared/var
+
+# A little more headroom than the defaults: the server holds a database pool and a scheduler.
+LimitNOFILE=8192
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=phylax
+
+[Install]
+WantedBy=multi-user.target

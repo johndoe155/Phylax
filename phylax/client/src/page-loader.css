@@ -1,0 +1,126 @@
+/* ── Page loader ─────────────────────────────────────────────────────────────────────────────────
+   Everything that moves is moved with transform / opacity only (compositor-only, no layout or paint
+   per frame). Sizes come from three custom properties that PageLoader.tsx sets in whole pixels:
+   --pl-cell (one seam row), --pl-cx / --pl-cy (viewport centre). */
+
+.pl-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* above the nav (50), scroll bar (60) and grain (20) */
+  overflow: hidden;
+  color: var(--cream);
+  font-family: var(--font-body);
+  contain: layout paint;
+  touch-action: none;
+}
+
+/* Sits behind the halves so the seam never shows hero through a sub-pixel gap. Hidden the moment they part. */
+.pl-bg { position: absolute; inset: 0; background: #111112; }
+
+/* Each half is a stack of horizontal bands (PageLoader.tsx sets left / top / width / height in pixels from
+   loaderGeometry.ts). They are the same ink as the page, so the screen at rest is quiet; the zig-zag only
+   appears as they open. Each band is its own compositor layer and only ever moves by translate3d. */
+.pl-band {
+  position: absolute;
+  background: #111112;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+/* Accent spark on a band's cut edge: invisible at rest, flashed by the timeline as the band starts to move.
+   It lives inside the band, so it travels with the cut. */
+.pl-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  opacity: 0;
+  background: var(--blue);
+  box-shadow: 0 0 10px var(--blue);
+  pointer-events: none;
+  will-change: opacity;
+}
+.pl-band--l .pl-edge { right: 0; }
+.pl-band--r .pl-edge { left: 0; }
+
+.pl-stage { position: absolute; inset: 0; }
+
+/* The logo, same proportions as the nav mark (2 / 24 stroke). 4.2 x 3.5 cells keeps the 24:20 ratio. */
+.pl-logo {
+  position: absolute;
+  left: calc(var(--pl-cx) - var(--pl-cell) * 2.1);
+  top: calc(var(--pl-cy) - var(--pl-cell) * 2.4);
+  width: calc(var(--pl-cell) * 4.2);
+  height: calc(var(--pl-cell) * 3.5);
+  overflow: visible;
+  will-change: transform; /* it flies onto the hero logo */
+}
+/* Square caps close the corner where each bar starts. */
+.pl-bar {
+  fill: none;
+  stroke: var(--cream);
+  stroke-width: 2;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.pl-word {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--pl-cy) + var(--pl-cell) * 2.1);
+  transform: translateY(-50%);
+  text-align: center;
+  font-weight: 800;
+  font-size: calc(var(--pl-cell) * 0.46);
+  line-height: 1.15;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em; /* balances the trailing letter-space so the word is optically centred */
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* The only on-screen way to skip (the other is Esc): small, quiet, bottom centre. */
+.pl-skip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 26px);
+  transform: translateX(-50%);
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--cream);
+  font: 10px var(--font-mono);
+  letter-spacing: 0.24em;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.pl-skip:hover { color: var(--blue); }
+.pl-skip:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
+
+/* ── Pre-paint hold ───────────────────────────────────────────────────────────────────────────────
+   index.html adds these classes before first paint when the loader will play on a document load.
+   On a client-side page switch PageLoader adds phylax-hold itself, in the same frame the new page mounts.
+   phylax-loading: cover the page until the overlay has mounted (removed by PageLoader).
+   phylax-hold:    keep the hero's own entrance reveal parked until the halves start to open, so the
+                   hero text arrives with the reveal instead of finishing unseen underneath the overlay. */
+html.phylax-loading body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  background: #111112;
+}
+html.phylax-hold .hero-section .reveal {
+  opacity: 0 !important;
+  transform: translateY(28px) !important;
+  transition: none !important;
+}
+
+/* While the loader's logo flies onto the hero logo, the hero logo itself stays hidden so there is never a second copy under it.
+   PageLoader removes the class in the same commit that unmounts the overlay, so the two swap with no gap.
+   (The nav's own mark is NOT hidden: it is simply revealed as the screen opens.) */
+html.phylax-flying .hero-section .hero-logo { visibility: hidden; }

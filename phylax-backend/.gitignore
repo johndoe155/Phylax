@@ -1,0 +1,68 @@
+# The dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# The build
+dist/
+dist-ssr/
+build/
+*.local
+
+# The environment. These hold secrets: the session secret, the database password, the OAuth client secrets.
+.env
+.env.*
+!.env.example
+
+# The Vercel link. This project is not deployed on Vercel — the Express server needs a real process.
+.vercel
+
+# Editor backups. These shipped once: eight `*~` files were in the release tree, and one of them
+# (Dashboard.tsx~) was a stale copy of a page that had since changed.
+*~
+*.bak
+*.swp
+
+# The logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# The runtime directories the server writes to
+var/
+server/var/
+
+# The coverage and the test output
+coverage/
+.nyc_output
+*.lcov
+
+# The caches
+.cache
+.vite
+.turbo
+.eslintcache
+*.tsbuildinfo
+
+# The editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# The operating system
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# The dumps
+*.dump
+*.tar.gz

@@ -1,0 +1,68 @@
+/* Recovery (pages/Recovery.tsx): forgot / reset password, confirm email, redeem a sign-in link.
+   Builds on login.css and onboarding.css (same ink canvas, cream sheet, sharp controls, status line and motion curves).
+   Only new pieces live here. Same rules: transform and opacity only, and the sheet never changes height (both panes are
+   always laid out; message rows are fixed height). Import after login.css and onboarding.css. */
+
+/* ---- Heading: four to five words, so it is set a step smaller than the sign-in page's two-word one. ---------------- */
+.lg-title.rc-title { font-size: clamp(1.9rem, 8.6vw, 3.6rem); line-height: .86; }
+.lg-title.rc-title .lg-line-accent { margin-left: 7vw; }
+@media (min-width: 600px) and (max-width: 959px) {
+  .lg-title.rc-title { font-size: clamp(3.4rem, 8.4vw, 5.2rem); }
+  .lg-title.rc-title .lg-line-accent { margin-left: 5vw; }
+}
+@media (min-width: 960px) {
+  .lg-title.rc-title { font-size: clamp(3.4rem, 5.2vw, 7rem); }
+  .lg-title.rc-title .lg-line-accent { margin-left: 5vw; }
+}
+
+/* ---- Panes. The form hugs the top of the sheet; the outcome sits at the foot, next to the thumb. -------------------- */
+.rc-pane[data-pane="form"] { align-self: start; }
+.rc-lead { margin-bottom: 14px; }
+
+/* ---- Outcome. ------------------------------------------------------------------------------------------------------ */
+.rc-result { padding-bottom: 14px; }
+.rc-msg { max-width: 21em; min-height: calc(var(--rc-lines, 2) * 1.3em); margin: 14px 0 0; color: var(--ink); font: 700 17px/1.3 var(--font-body); letter-spacing: -.02em; text-wrap: balance; outline: 0; }
+/* One ripple leaves the seal as the pane arrives (the keyframes are the account page's). */
+.rc-pane[data-active] .lg-bio-ring { animation: ob-ripple 1.5s var(--lg-out) .45s both; }
+.rc-pane[data-active] .lg-bio-ring-2 { animation-delay: .75s; }
+.rc-result[data-tone="problem"] .lg-bio-core, .rc-result[data-tone="notice"] .lg-bio-core { background: var(--ink); color: var(--cream); }
+.rc-row { justify-content: space-between; margin-top: 2px; }
+a.lg-cta { text-align: center; }
+
+/* ---- Confirm: the token the link carried, so the person can see it was read. ----------------------------------------- */
+.rc-token { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; margin: 0 0 14px; padding: 0 16px; border: 1px solid var(--lg-edge); background: var(--lg-field); }
+.rc-token-label { color: var(--lg-muted); font: 600 14px/1.2 var(--font-body); letter-spacing: -.01em; }
+.rc-token-value { color: var(--ink); font: 500 14px/1 var(--font-mono); letter-spacing: .1em; }
+
+/* ---- Reset: the length counter reads as met once it is. ------------------------------------------------------------- */
+.rc-count[data-met] { color: var(--ink); }
+
+/* ---- Redeem: helper row, the "token found" ring, and the device checkbox. ------------------------------------------- */
+.rc-help { display: flex; align-items: center; flex: 1; min-height: 24px; margin: 0; padding: 2px 4px 0; color: var(--lg-muted); font: 500 13px/1.25 var(--font-body); letter-spacing: -.005em; transition: color .25s ease; }
+.rc-help[data-found] { color: var(--ink); font-weight: 600; }
+.rc-pulse { position: relative; }
+.rc-pulse::after { content: ""; position: absolute; inset: 0; border: 2px solid var(--blue); opacity: 0; pointer-events: none; }
+.rc-pulse[data-on]::after { animation: rc-found .8s var(--lg-out) both; }
+@keyframes rc-found { from { transform: scale(1); opacity: .95; } to { transform: scale(1.04, 1.28); opacity: 0; } }
+.rc-agree { margin: 4px 0 12px; }
+.rc-agree:has(.ob-agree-input:disabled) { opacity: .6; cursor: default; }
+
+/* ---- Footer: Back to sign in, the same on every route. --------------------------------------------------------------- */
+.rc-foot-nav { display: flex; }
+.rc-back { display: inline-flex; align-items: center; gap: 4px; min-height: 48px; padding: 0 8px 0 0; color: var(--ink); font: 700 13px/1 var(--font-body); letter-spacing: -.005em; }
+.rc-back span { text-decoration: underline; text-decoration-color: rgba(17,17,18,.35); text-underline-offset: 4px; }
+.rc-back svg { flex: none; transition: transform .35s var(--lg-out); }
+.rc-back:active svg { transform: translateX(-4px); }
+@media (hover: hover) { .rc-back:hover svg { transform: translateX(-4px); } .rc-back:hover span { text-decoration-color: var(--ink); } }
+
+/* Short phones: the form gets the room, the extras go (the account page's rule, plus this page's result copy). */
+@media (max-height: 700px) { .rc-token { min-height: 52px; margin-bottom: 8px; } .rc-agree { min-height: 56px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rc-pane[data-active] .lg-bio-ring { animation: none; }
+  .rc-pulse[data-on]::after { animation: none; }
+  .rc-back svg { transition: none; }
+}
+
+/* The message row sits flush above the primary action, so give them a little air. */
+.rc .lg-hint + .lg-cta { margin-top: 6px; }

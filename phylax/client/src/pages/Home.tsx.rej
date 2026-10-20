@@ -1,0 +1,74 @@
+--- client/src/pages/Home.tsx	2026-10-14 16:38:12.000000000 +0000
++++ home/claude/work/phylax/client/src/pages/Home.tsx	2026-10-14 16:59:26.295773455 +0000
+@@ -37,6 +37,20 @@
+   );
+ }
+ 
++/** Click state for the round arrow buttons. `trigger()` latches `active` on and releases it after `ms`, which covers the
++ *  smooth scroll the click starts; clicking again restarts the timer, and the timer is cleared on unmount. */
++function useTimedActive(ms = 900) {
++  const [active, setActive] = useState(false);
++  const timer = useRef<number | undefined>(undefined);
++  const trigger = useCallback(() => {
++    setActive(true);
++    window.clearTimeout(timer.current);
++    timer.current = window.setTimeout(() => setActive(false), ms);
++  }, [ms]);
++  useEffect(() => () => window.clearTimeout(timer.current), []);
++  return [active, trigger] as const;
++}
++
+ // Every section the nav label can report; `menu: true` ones also appear in the menu panel.
+ const sections = [
+   { id: "home", label: "Home", menu: true },
+@@ -169,7 +183,7 @@
+ }
+ 
+ // Everything in the hero. Rendered twice: once for real, once inverted inside the blob (decorative copy).
+-function HeroScene({ inverted = false, onScrollDown }: { inverted?: boolean; onScrollDown?: () => void }) {
++function HeroScene({ inverted = false, arrowActive = false, onScrollDown }: { inverted?: boolean; arrowActive?: boolean; onScrollDown?: () => void }) {
+   return (
+     <>
+       <div className="hero-backdrop"><HeroBars /></div>
+@@ -179,8 +193,8 @@
+         <div className="hero-footer reveal">
+           <p>One log for every staffing app, checked for <Accent>overlap</Accent> before it costs you a <Accent>shift</Accent>.</p>
+           {inverted
+-            ? <span className="round-arrow"><ArrowDownRight size={20} /></span>
+-            : <button className="round-arrow" onClick={onScrollDown} aria-label="Scroll to How it works"><ArrowDownRight size={20} /></button>}
++            ? <span className="round-arrow" data-active={arrowActive}><ArrowDownRight size={20} /></span>
++            : <button className="round-arrow" data-active={arrowActive} onClick={onScrollDown} aria-label="Scroll to How it works"><ArrowDownRight size={20} /></button>}
+         </div>
+       </div>
+       {/* Brand block: top centre of the hero, deliberately outside .hero-content so the loader's zoom never moves it.
+@@ -213,6 +227,9 @@
+   const blobRef = useRef<HTMLDivElement>(null);
+   const footerContentRef = useRef<HTMLDivElement>(null);
+   const footerMarqueeRef = useRef<HTMLDivElement>(null);
++  // Click states of the hero arrow (dips, points down) and the footer back-to-top arrow (lifts, points up).
++  const [heroArrowActive, triggerHeroArrow] = useTimedActive();
++  const [footerArrowActive, triggerFooterArrow] = useTimedActive();
+   // The footer marquee runs in reverse while the visitor scrolls up.
+   useScrollReactiveMarquee(footerMarqueeRef);
+   useBlobReveal(heroRef, blobRef);
+@@ -379,9 +396,9 @@
+ 
+       <main inert={menuOpen}>
+         <section id="home" ref={heroRef} className="hero-section" data-theme="dark">
+-          <HeroScene onScrollDown={() => jumpTo("how-it-works")} />
++          <HeroScene arrowActive={heroArrowActive} onScrollDown={() => { triggerHeroArrow(); jumpTo("how-it-works"); }} />
+           {/* Inverted twin, revealed only inside the touch blob. Decorative: hidden from AT, ignores pointer events. */}
+-          <div className="hero-inverse" ref={blobRef} data-backdrop-blob="" aria-hidden="true"><HeroScene inverted /></div>
++          <div className="hero-inverse" ref={blobRef} data-backdrop-blob="" aria-hidden="true"><HeroScene inverted arrowActive={heroArrowActive} /></div>
+         </section>
+ 
+         <section className="marquee-section" aria-label="Log the shift, catch the clash. Every app, every shift.">
+@@ -511,7 +528,7 @@
+       <footer className="site-footer" inert={menuOpen}>
+         <div className="footer-frame">
+           {/* Outside and above the cream panel, on its top-right edge. */}
+-          <div className="footer-bar"><button className="round-arrow" onClick={() => jumpTo("home")} aria-label="Back to top"><ArrowUp size={20} /></button></div>
++          <div className="footer-bar"><button className="round-arrow" data-active={footerArrowActive} onClick={() => { triggerFooterArrow(); jumpTo("home"); }} aria-label="Back to top"><ArrowUp size={20} /></button></div>
+           <FooterShape contentRef={footerContentRef}>
+             {/* 1. Top banner: the disclaimer as an infinite marquee. The second group is a seamless-loop copy, hidden from assistive tech. */}
+             <div className="footer-marquee" role="note">

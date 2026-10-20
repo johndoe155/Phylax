@@ -1,0 +1,53 @@
+/* Sketch logo in the menu (components/MenuSketchLogo.tsx).
+
+   It lives in `.menu-panel-top`, the row above the links. That row used to be an empty spacer holding one non-breaking
+   space; it now holds the logo. The selectors below are `.menu-panel > .menu-panel-top` rather than `.menu-panel-top` so
+   they win over index.css whichever order the two stylesheets are bundled in, and index.css itself is left as it was.
+
+   THE SLOT. The row takes whatever height the panel has to spare, up to `--sketch-max`; anything beyond that is spread
+   by the panel's `space-between`, exactly as before. When the screen is too short to spare any (a small phone, or a phone
+   on its side) the row collapses to nothing and the logo steps aside rather than pushing the links off screen. The row is
+   a size container so the logo can be sized from the room it was actually given (`cqh`). */
+.menu-panel > .menu-panel-top {
+  --sketch-max: 136px;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: var(--sketch-max);
+  container-type: size;
+  justify-content: center;
+  align-items: flex-end;
+}
+/* On a phone the logo is always there: the row never gets smaller than 60px. The menu's own spacing is tightened on short
+   screens to pay for it (the wide display font wraps "How it works" and "The checks" onto two lines, which leaves a phone
+   with no spare height at all). `.menu-panel[data-state]` and `.menu-panel .menu-links button` out-rank index.css's
+   `.menu-panel` / `.menu-links button` rules whichever stylesheet loads last. Larger screens keep the "only if there is
+   room" behaviour. */
+@media (max-width: 760px) {
+  .menu-panel > .menu-panel-top { --sketch-max: 96px; min-height: 60px; }
+}
+@media (max-width: 760px) and (max-height: 800px) {
+  .menu-panel[data-state] { padding-top: 78px; }
+  .menu-panel .menu-links button { padding-top: 13px; padding-bottom: 13px; }
+}
+/* The non-breaking space that held the old empty row open. */
+.menu-panel > .menu-panel-top::before { content: none; }
+
+/* The drawing's canvas is 100 x 100 with the mark inset about 10% from the left, so it is pulled back by that much to put
+   the mark's own left edge on the links' hairline. Square, so width follows the height the slot gave it. */
+.menu-sketch {
+  --s: 100cqh;
+  position: relative;
+  flex: none;
+  width: var(--s);
+  height: var(--s);
+  color: var(--cream);
+  pointer-events: none;
+}
+@container (max-height: 55px) {
+  .menu-sketch { display: none; }
+}
+
+/* All seven drawings are stacked; the one with `data-active` is shown. A hard cut, no fade: the cut IS the effect. */
+.menu-sketch-frame { position: absolute; inset: 0; visibility: hidden; }
+.menu-sketch-frame[data-active] { visibility: visible; }
+.menu-sketch-frame svg { display: block; width: 100%; height: 100%; overflow: visible; }

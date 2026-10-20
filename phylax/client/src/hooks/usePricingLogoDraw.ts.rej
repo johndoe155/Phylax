@@ -1,0 +1,128 @@
+--- client/src/hooks/usePricingLogoDraw.ts
++++ client/src/hooks/usePricingLogoDraw.ts
+@@ -1,113 +1,28 @@
+ import { useLayoutEffect, useState, type RefObject } from "react";
+-import gsap from "gsap";
+-import { DrawSVGPlugin } from "gsap/DrawSVGPlugin";
+-
+-gsap.registerPlugin(DrawSVGPlugin);
+-
+-/** The draw starts when the sketch's top edge reaches 85% of the viewport height (it is well in view). As an
+- * IntersectionObserver rootMargin: the viewport's bottom edge is pulled up by 15%. */
+-const ROOT_MARGIN = "0px 0px -15% 0px";
++import { watchLogoScroll } from "@/lib/pricingLogoDraw";
+ 
+ /**
+- * The Pricing logo sketch draws itself with GSAP DrawSVG: rectangle A's four sides, then rectangle B's, then the
+- * hatching. Returns `true` once the drawing has finished (immediately with prefers-reduced-motion, or if there is no
+- * logo), which PricingIconCycle uses to hold the rest of the sketch loop until the logo is complete.
++ * The Pricing logo sketch draws itself as the visitor scrolls down to it (and un-draws as they scroll back up):
++ * rectangle A's four sides, then rectangle B's, then the hatching. See lib/pricingLogoDraw.ts.
+  *
+- * It is started by an IntersectionObserver rather than a ScrollTrigger: ScrollTrigger caches its start position, and the
+- * layout above Pricing keeps changing height (checks list, Gap sequence spacer, fonts) without a refresh, so a cached
+- * start drifts and the draw would run before the logo is on screen. The observer reads live geometry.
++ * Returns `true` while the logo is completely drawn, which PricingIconCycle uses to hold the rest of the sketch loop
++ * until the logo is complete (and to reset it when the visitor scrolls back up into the drawing).
+  *
+- * The strokes are hidden before first paint (layout effect) so a fully drawn logo never flashes before the draw. Zero
+- * length round-capped strokes would show as dots, so each path is also revealed (autoAlpha) only the instant its own
+- * draw begins. Each rectangle side exists twice in the file (main + loose pass) as two real
+- * paths, which are drawn together. They are deliberately NOT <use> instances of shared <defs> paths: WebKit does not
+- * re-render a <use> when its source's dash style changes, and Firefox cannot measure paths inside <defs> (DrawSVG then
+- * sees a length of 0), so in those browsers the drawing never played.
++ * The drawing is a pure function of scroll position, so it is deliberately NOT gated on prefers-reduced-motion
++ * (nothing moves unless the visitor scrolls) and does not depend on an IntersectionObserver, a timeline or a plugin.
+  */
+ export function usePricingLogoDraw(rootRef: RefObject<HTMLElement | null>): boolean {
+-  const [drawn, setDrawn] = useState(false);
++  const [done, setDone] = useState(false);
+ 
+   useLayoutEffect(() => {
+     const root = rootRef.current;
+     const svg = root?.querySelector<SVGSVGElement>("svg.logo-mark");
+-    // Each rectangle is drawn twice (a main pass and a loose pass, two <g> with the same four sides in the same order),
+-    // so side i is the pair of i-th paths, drawn together. These are real paths, not <use> instances of shared <defs>.
+-    const sides = (rect: string): SVGPathElement[][] => {
+-      const passes = svg ? Array.from(svg.querySelectorAll<SVGElement>(`.${rect}`)) : [];
+-      const count = Math.min(...passes.map((g) => g.querySelectorAll("path").length));
+-      return passes.length ? Array.from({ length: count }, (_, i) => passes.map((g) => g.querySelectorAll("path")[i])) : [];
+-    };
+-    const sidesA = sides("logo-a");
+-    const sidesB = sides("logo-b");
+-    const hatch = svg ? Array.from(svg.querySelectorAll<SVGPathElement>(".logo-hatch path")).map((p) => [p]) : [];
+-    if (!root || !svg || !sidesA.length || !sidesB.length) {
+-      setDrawn(true);
++    if (!root || !svg) {
++      setDone(true);
+       return;
+     }
+-
+-    const mm = gsap.matchMedia();
+-
+-    mm.add("(prefers-reduced-motion: reduce)", () => {
+-      setDrawn(true);
+-    });
+-
+-    mm.add("(prefers-reduced-motion: no-preference)", () => {
+-      if (typeof IntersectionObserver === "undefined") {
+-        setDrawn(true); // nothing can tell us when it is in view: leave the logo drawn and let the loop run
+-        return;
+-      }
+-      const all = [...sidesA, ...sidesB, ...hatch].flat();
+-      gsap.set(all, { drawSVG: "0%", autoAlpha: 0 });
+-
+-      const tl = gsap.timeline({ paused: true, onComplete: () => setDrawn(true) });
+-      const draw = (paths: SVGPathElement[][], at: number, each: number, stagger: number, ease: string) =>
+-        paths.forEach((path, i) => {
+-          const t = at + i * stagger;
+-          tl.set(path, { autoAlpha: 1 }, t).fromTo(path, { drawSVG: "0%" }, { drawSVG: "100%", duration: each, ease }, t);
+-        });
+-
+-      draw(sidesA, 0, 0.32, 0.26, "power1.inOut"); // rectangle A: top, right, bottom, left, one after another
+-      draw(sidesB, 0.55, 0.32, 0.26, "power1.inOut"); // rectangle B follows, overlapping A's last sides
+-      draw(hatch, 1.45, 0.16, 0.025, "none"); // hatching, quick strokes in file order
+-
+-      let started = false;
+-      const start = () => {
+-        if (started) return;
+-        started = true;
+-        tl.play();
+-      };
+-      const jumpToEnd = () => {
+-        if (started) return;
+-        started = true;
+-        tl.progress(1); // events are suppressed on a seek, so onComplete will not fire: release the loop ourselves
+-        setDrawn(true);
+-      };
+-
+-      // Fires straight away with the current state (so a reload part-way down the page works), then on every change.
+-      const observer = new IntersectionObserver(
+-        (entries) => {
+-          const entry = entries[entries.length - 1];
+-          if (entry.isIntersecting) {
+-            observer.disconnect();
+-            start();
+-          } else if (entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? 0)) {
+-            observer.disconnect(); // scrolled straight past it (menu link / fast fling): show it finished
+-            jumpToEnd();
+-          }
+-        },
+-        { rootMargin: ROOT_MARGIN, threshold: 0 },
+-      );
+-      observer.observe(root);
+-
+-      return () => {
+-        observer.disconnect();
+-        tl.kill();
+-        gsap.set(all, { clearProps: "all" });
+-      };
+-    });
+-
+-    return () => mm.revert();
++    return watchLogoScroll(root, svg, setDone);
+   }, [rootRef]);
+ 
+-  return drawn;
++  return done;
+ }

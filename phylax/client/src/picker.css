@@ -1,0 +1,176 @@
+/* Date and time pickers for the "Log a shift" overlay. Same vocabulary as dashboard.css and index.css: ink and cream, the
+   slate --blue as the only accent, square corners, 1px hairlines, DM Mono for small print, Syne for the big numerals,
+   and the site's two easing curves. Nothing here is a browser control. */
+:root { --pk-surface: #18191b; --pk-hover: #262c31; --pk-out: cubic-bezier(.16,1,.3,1); --pk-cell: 40px; }
+@media (pointer: coarse) { :root { --pk-cell: 44px; } }
+
+/* ---- Triggers ---------------------------------------------------------------------------------------------------- */
+.pk-trigger { position: relative; display: flex; align-items: center; color: var(--cream); background: transparent; border: 1px solid var(--line-dark); border-radius: 0; text-align: left; transition: border-color .2s ease, background .2s ease, color .2s ease, box-shadow .25s var(--pk-out); }
+@media (hover: hover) { .pk-trigger:hover:not(:disabled) { border-color: var(--blue); } }
+.pk-trigger[aria-expanded="true"] { border-color: var(--blue); background: rgba(122,147,168,.08); box-shadow: 0 0 0 4px rgba(122,147,168,.16); }
+.pk-trigger:disabled { opacity: .35; cursor: not-allowed; }
+/* Invalid: the hero's dashed, marching "clash" outline replaces the edge (same device as the login fields). */
+.pk-dash { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+.pk-dash rect { fill: none; stroke: var(--blue); stroke-width: 1.5; stroke-dasharray: 6 6; }
+.pk-trigger[data-invalid] { border-color: transparent; }
+.pk-trigger[data-invalid] .pk-dash { opacity: 1; }
+.pk-trigger[data-invalid] .pk-dash rect { animation: clash-march 1.4s linear infinite; }
+
+/* Date: sits in the chips row, so it takes the field's type and the chip's selected state. */
+.pk-date { gap: 9px; padding: 9px 12px; font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.pk-date svg:not(.pk-dash) { flex: none; color: var(--cream-muted); transition: color .2s ease; }
+.pk-date.is-on { color: var(--ink); background: var(--blue); border-color: var(--blue); }
+.pk-date.is-on svg:not(.pk-dash) { color: var(--ink); }
+
+/* Time: caption above, numerals below. */
+.pk-time { flex-direction: column; align-items: stretch; gap: 12px; min-height: 78px; padding: 12px 14px 13px; }
+.pk-micro { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.pk-micro > span { display: inline-flex; align-items: center; gap: 7px; }
+.pk-micro em { font-style: normal; color: var(--blue); animation: pk-fade .35s var(--pk-out) both; }
+.pk-value { display: flex; align-items: baseline; gap: 7px; font: 700 26px/1 var(--font-display); letter-spacing: -.07em; text-transform: uppercase; }
+.pk-value small { color: var(--cream-muted); font: 500 10px var(--font-mono); letter-spacing: .12em; }
+
+/* ---- Panel ------------------------------------------------------------------------------------------------------- */
+.pk-scrim { position: fixed; inset: 0; z-index: 70; }
+.pk-pop { --pk-dy: -8px; position: fixed; z-index: 71; left: var(--pk-x, 12px); top: var(--pk-y, 12px); width: 328px; max-width: calc(100vw - 24px); padding: 16px; overflow-x: clip; color: var(--cream); background: var(--pk-surface); border: 1px solid var(--line-dark); box-shadow: 0 24px 60px rgba(0,0,0,.45); transform-origin: var(--pk-ox, 24px) 0; animation: pk-in .4s var(--pk-out) backwards; }
+.pk-pop[data-side="top"] { --pk-dy: 8px; transform-origin: var(--pk-ox, 24px) 100%; }
+.pk-pop.is-leaving { pointer-events: none; animation: pk-out .18s cubic-bezier(.7,0,.84,0) forwards; }
+.pk-scrim.is-leaving { pointer-events: none; }
+@keyframes pk-in { from { opacity: 0; transform: translateY(var(--pk-dy)) scale(.985); } }
+@keyframes pk-out { to { opacity: 0; transform: translateY(calc(var(--pk-dy) / 2)); } }
+@keyframes pk-fade { from { opacity: 0; } }
+@keyframes pk-next { from { opacity: 0; transform: translateX(14px); } }
+@keyframes pk-prev { from { opacity: 0; transform: translateX(-14px); } }
+@keyframes pk-tick { from { opacity: 0; transform: translateY(8px); } }
+@keyframes pk-note-in { from { opacity: 0; transform: translateY(-4px); } }
+
+/* ---- Calendar ---------------------------------------------------------------------------------------------------- */
+.pk-head { display: flex; align-items: center; min-width: 0; margin-bottom: 14px; }
+.pk-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 .32em; min-width: 0; margin: 0; font: 800 26px/1 var(--font-display); letter-spacing: -.07em; text-transform: uppercase; }
+.pk-title button { font: inherit; letter-spacing: inherit; text-transform: inherit; transition: color .2s ease; }
+.pk-title .pk-year { color: var(--blue); }
+@media (hover: hover) { .pk-title button:hover { color: var(--blue); } .pk-title .pk-year:hover { color: var(--cream); } }
+.pk-nav { display: flex; flex: none; gap: 8px; margin-left: auto; }
+.pk-nav button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line-dark); border-radius: 50%; transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s var(--ease); }
+@media (pointer: coarse) { .pk-nav button { width: 38px; height: 38px; } }
+@media (hover: hover) { .pk-nav button:hover { color: var(--ink); background: var(--cream); border-color: var(--cream); } }
+.pk-nav button:active { transform: scale(.92); }
+
+/* overflow-x: clip keeps the month-to-month slide (translateX) inside the panel; without it the slide briefly makes the sheet scroll sideways. */
+.pk-body { height: calc(28px + var(--pk-cell) * 6); overflow-x: clip; }
+.pk-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.pk-dow { display: grid; place-items: center; height: 28px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.pk-weeks[data-dir="next"] { animation: pk-next .45s var(--pk-out) backwards; }
+.pk-weeks[data-dir="prev"] { animation: pk-prev .45s var(--pk-out) backwards; }
+
+.pk-day { position: relative; display: grid; place-items: center; height: var(--pk-cell); border: 1px solid transparent; border-radius: 0; color: var(--cream); font: 12px var(--font-mono); letter-spacing: .02em; font-variant-numeric: tabular-nums; transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s var(--ease); }
+@media (hover: hover) { .pk-day:hover:not(.is-off) { border-color: var(--blue); } }
+.pk-day:active:not(.is-off) { transform: scale(.94); }
+.pk-day.is-out { color: rgba(245,241,234,.34); }
+/* Today: blue numerals with a short rule under them. */
+.pk-day.is-now { color: var(--blue); }
+.pk-day.is-now::after { content: ""; position: absolute; left: 50%; bottom: 7px; width: 10px; height: 1px; background: currentColor; transform: translateX(-50%); }
+/* A day that already has a logged shift: one small dot, top right. */
+.pk-day.is-marked::before { content: ""; position: absolute; top: 7px; right: 8px; width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: .75; }
+/* Selected: the chip's own treatment. */
+.pk-day.is-sel { color: var(--ink); background: var(--blue); border-color: var(--blue); font-weight: 500; }
+/* Disabled: hatched, like an overlap on the week board. */
+.pk-day.is-off { color: rgba(245,241,234,.22); background: repeating-linear-gradient(135deg, rgba(245,241,234,.07) 0 1px, transparent 1px 6px); cursor: not-allowed; }
+.pk-day:focus-visible, .pk-tile:focus-visible { outline: 1px solid var(--cream); outline-offset: -4px; }
+.pk-day.is-sel:focus-visible, .pk-tile.is-sel:focus-visible { outline-color: var(--ink); }
+
+.pk-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line-dark); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.pk-link { padding-bottom: 1px; color: var(--blue); border-bottom: 1px solid currentColor; font: inherit; letter-spacing: inherit; text-transform: inherit; transition: color .2s ease; }
+@media (hover: hover) { .pk-link:hover:not(:disabled) { color: var(--cream); } }
+.pk-link:disabled { opacity: .35; cursor: not-allowed; }
+.pk-legend { display: inline-flex; align-items: center; gap: 8px; color: var(--cream-muted); }
+.pk-legend::before { content: ""; width: 3px; height: 3px; border-radius: 50%; background: var(--cream-muted); }
+
+/* ---- Tiles: months, years, hours, minutes. Hairlines come from a 1px gap over a line-coloured ground. --------------- */
+.pk-tiles { display: grid; gap: 1px; background: var(--line-dark); border: 1px solid var(--line-dark); animation: pk-fade .3s ease backwards; }
+.pk-tiles[data-dir="next"] { animation: pk-next .45s var(--pk-out) backwards; }
+.pk-tiles[data-dir="prev"] { animation: pk-prev .45s var(--pk-out) backwards; }
+.pk-fill { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(4, 1fr); height: 100%; }
+.pk-six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.pk-tile { position: relative; display: grid; place-items: center; min-height: var(--pk-cell); color: var(--cream); background: var(--pk-surface); border-radius: 0; font: 12px var(--font-mono); letter-spacing: .04em; font-variant-numeric: tabular-nums; transition: background .2s ease, color .2s ease, transform .2s var(--ease); }
+.pk-fill .pk-tile { font: 700 15px/1 var(--font-display); letter-spacing: -.04em; text-transform: uppercase; }
+@media (hover: hover) { .pk-tile:hover:not(.is-sel) { background: var(--pk-hover); } }
+.pk-tile:active { transform: scale(.96); }
+.pk-tile.is-now:not(.is-sel) { color: var(--blue); }
+.pk-tile.is-now::after { content: ""; position: absolute; left: 50%; bottom: 10px; width: 10px; height: 1px; background: currentColor; transform: translateX(-50%); }
+.pk-tile.is-sel { color: var(--ink); background: var(--blue); }
+
+/* ---- Clock ------------------------------------------------------------------------------------------------------- */
+.pk-ph { display: flex; justify-content: space-between; gap: 12px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.pk-ph-note { color: var(--blue); }
+.pk-readout-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 14px 0 20px; }
+.pk-readout { overflow: hidden; padding-top: 4px; font: 800 52px/.9 var(--font-display); letter-spacing: -.08em; text-transform: uppercase; }
+.pk-readout span { display: block; animation: pk-tick .35s var(--pk-out) backwards; }
+.pk-seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; flex: none; width: 96px; border: 1px solid var(--line-dark); }
+.pk-seg::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 50%; background: var(--blue); transition: transform .4s var(--ease); }
+.pk-seg[data-v="PM"]::before { transform: translateX(100%); }
+.pk-seg button { position: relative; height: 34px; color: var(--cream-muted); font: 700 10px var(--font-mono); letter-spacing: .14em; transition: color .25s ease; }
+.pk-seg button[aria-checked="true"] { color: var(--ink); }
+.pk-seg button:focus-visible { outline-offset: -4px; outline-color: var(--cream); }
+.pk-seg[data-v] button[aria-checked="true"]:focus-visible { outline-color: var(--ink); }
+.pk-label { display: block; margin: 0 0 8px; }
+.pk-clock .pk-six + .pk-label { margin-top: 18px; }
+.pk-done { display: block; width: 100%; margin-top: 18px; }
+
+/* ---- Length shortcuts and the note under the times --------------------------------------------------------------- */
+.pk-length { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.pk-note { min-height: 18px; margin: 0; color: var(--cream-muted); font: 9px/1.6 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.pk-note > span { display: inline-flex; align-items: baseline; gap: 8px; animation: pk-note-in .35s var(--pk-out) both; }
+.pk-note.is-error { color: var(--blue); }
+.pk-note.is-error > span::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; transform: translateY(-.08em); }
+
+/* ---- Phones: the panel becomes a sheet from the bottom edge, with the page dimmed behind it. ---------------------- */
+@media (max-width: 640px) {
+  .pk-scrim { background: rgba(17,17,18,.66); animation: pk-fade .3s ease backwards; }
+  .pk-pop { --pk-dy: 0px; left: 0; right: 0; top: auto; bottom: 0; width: auto; max-width: none; max-height: 92svh; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px)); border-width: 1px 0 0; box-shadow: 0 -24px 60px rgba(0,0,0,.45); animation: pk-sheet-in .5s var(--pk-out) backwards; }
+  .pk-pop.is-leaving { animation: pk-sheet-out .25s cubic-bezier(.7,0,.84,0) forwards; }
+  .pk-body { height: calc(28px + var(--pk-cell) * 6); }
+  .pk-time { min-height: 74px; padding: 11px 12px 12px; }
+  .pk-value { font-size: 23px; }
+}
+/* ---- Autocomplete: the list under a field. Same surface, hairlines and selected state as the picker panels. ---------- */
+.ac { position: relative; }
+.ac .field { display: block; width: 100%; }
+/* z-index 1: above the fields that follow, below the overlay's sticky bar (z-index 2). */
+.ac-list { --pk-dy: -6px; position: absolute; z-index: 1; left: 0; right: 0; top: calc(100% + 6px); max-height: 292px; margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; color: var(--cream); background: var(--pk-surface); border: 1px solid var(--line-dark); box-shadow: 0 24px 60px rgba(0,0,0,.45); transform-origin: 50% 0; animation: pk-in .3s var(--pk-out) backwards; }
+.ac-head { padding: 11px 14px 9px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.ac-opt { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 52px; padding: 10px 14px; border-top: 1px solid var(--line-dark); cursor: pointer; transition: background .2s ease, box-shadow .25s var(--pk-out); }
+.ac-opt[aria-selected="true"] { background: var(--pk-hover); box-shadow: inset 2px 0 0 var(--blue); }
+.ac-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ac-primary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 16px/1 var(--font-display); letter-spacing: -.06em; text-transform: uppercase; }
+.ac-secondary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.ac-meta { flex: none; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; }
+.ac mark { color: var(--blue); background: none; }
+
+/* ---- Modal: a centred dialog for a single field (Add a platform). ------------------------------------------------- */
+.pk-scrim-modal { background: rgba(17,17,18,.66); animation: pk-fade .3s ease backwards; }
+.pk-pop.pk-modal { --pk-dy: 10px; inset: 0; width: min(400px, calc(100% - 24px)); max-width: none; height: fit-content; max-height: calc(100svh - 24px); margin: auto; padding: 22px; overflow-y: auto; overscroll-behavior: contain; border-width: 1px; box-shadow: 0 24px 60px rgba(0,0,0,.45); transform-origin: 50% 50%; animation: pk-in .4s var(--pk-out) backwards; }
+.pk-pop.pk-modal.is-leaving { animation: pk-out .18s cubic-bezier(.7,0,.84,0) forwards; }
+.pk-mtitle { margin: 16px 0 0; font: 800 clamp(2.4rem, 11vw, 3rem)/.84 var(--font-display); letter-spacing: -.08em; text-transform: uppercase; }
+.pk-mcopy { max-width: 32ch; margin: 16px 0 22px; color: var(--cream-muted); font-size: 14px; line-height: 1.25; }
+.pk-input { display: block; width: 100%; padding: 14px 12px; }
+.pk-modal .pk-note { margin-top: 8px; }
+.pk-mfoot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.pk-madd { padding: 13px 22px; }
+/* On a phone it floats near the top instead of sitting at the bottom, so the on-screen keyboard never covers it. */
+@media (max-width: 640px) { .pk-pop.pk-modal { top: calc(env(safe-area-inset-top, 0px) + 12svh); bottom: auto; height: auto; margin: 0 auto; padding: 20px; } }
+
+@keyframes pk-sheet-in { from { transform: translateY(100%); } }
+@keyframes pk-sheet-out { to { transform: translateY(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-pop, .pk-scrim { animation: pk-fade .15s ease backwards; }
+  .pk-pop.is-leaving { animation: pk-fade-out .15s ease forwards; }
+  .pk-pop.pk-modal, .ac-list { animation: pk-fade .15s ease backwards; }
+  .pk-pop.pk-modal.is-leaving { animation: pk-fade-out .15s ease forwards; }
+  .ac-opt { transition-duration: 0s; }
+  .pk-weeks[data-dir], .pk-tiles[data-dir], .pk-readout span { animation: pk-fade .2s ease backwards; }
+  .pk-seg::before, .pk-day, .pk-tile, .pk-nav button { transition-duration: 0s; }
+  .pk-trigger[data-invalid] .pk-dash rect { animation: none; }
+}
+@keyframes pk-fade-out { to { opacity: 0; } }

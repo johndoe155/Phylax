@@ -1,0 +1,252 @@
+/* Dashboard: builds on the landing page's tokens and classes (index.css). Only new pieces live here. */
+:root { --dash-out: cubic-bezier(.16,1,.3,1); } /* the same settle curve the overlay and the pickers use */
+.dash-section { min-height: 100svh; padding: 150px 6.7vw 14vh; }
+.dash-inner { max-width: 1150px; margin: 0 auto; }
+.dash-top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 28px; margin-top: 9vh; }
+.dash-top .display-heading { font-size: clamp(5rem, 11vw, 11rem); }
+.dash-meta { display: flex; align-items: end; gap: 44px; }
+
+/* "<name>'s" written over YOUR in the "YOUR STACK" heading (Marker Hand, var(--blue)); markup and sizing rule: pages/Dashboard.tsx, lib/dashboardName.ts.
+   - YOUR is struck through with one hand-drawn marker stroke (.dash-strike, drawn in; see below), and the name is written just above the stroke, its lower edge resting on it, so the name reads as replacing the word. Both only exist when there is a name.
+   - The heading gets padding-top (.dash-owned) so a big or wrapped name, which grows upwards, has room above YOUR.
+   - The note sits in em of the heading, like the other handwritten notes (.marker-note in index.css, shared), so it keeps its place from a
+     phone to a wide desktop. .dash-name-box is the positioned, tilted box; .dash-name inside it carries the size, which is in em of the
+     heading and set inline from the name's length (clamped between NAME_SIZE_MIN and NAME_SIZE_MAX), so the box's own em stays the heading's.
+   - It starts at the heading's left edge and grows rightwards over the empty space beside YOUR, never leftwards off the screen. Its width is
+     capped at the page's width (the viewport minus the section's side padding, 6.7vw each side here and 22px each side on a phone), and a name
+     still wider than that wraps onto a second line (overflow-wrap: anywhere also breaks a long name with no spaces) rather than running off the
+     edge, where .site-shell would clip it.
+   - The heading's rule is .display-heading .x so it wins over .marker-note whichever stylesheet loads last. */
+.dash-your { position: relative; display: inline-block; }
+/* The strike is an inline svg (components/DashStrike.tsx), not a mask on ::after, so it can be drawn. Same box as before: a little past the
+   word on both sides, centred at 62% of its height, tilted -2deg. Its viewBox is stretched over this box (preserveAspectRatio="none").
+   - Only the line is animated. The reveal (.dash-strike-reveal) is a mask stroke whose dash is pulled back, uncovering the marker body from left to
+     right along its own path; the second pass (.dash-strike-streak) is drawn a beat later. Nothing here touches the name above it.
+   - Colour is the heading's blue. The body is a touch translucent so the denser second pass shows where it overlaps, like a marker gone over twice. */
+.dash-strike {
+  position: absolute; left: -.04em; top: 62%; width: calc(100% + .1em); height: .22em; overflow: visible;
+  transform: translateY(-50%) rotate(-2deg); pointer-events: none;
+}
+.dash-strike-body { fill: var(--blue); fill-opacity: .93; }
+.dash-strike-streak { stroke: var(--blue); stroke-opacity: .55; stroke-dasharray: 1; stroke-dashoffset: 1; animation: dash-strike-draw .5s cubic-bezier(.45,.1,.4,1) .62s forwards; }
+.dash-strike-reveal { stroke-dasharray: 1; stroke-dashoffset: 1; animation: dash-strike-draw .72s cubic-bezier(.5,.08,.35,1) .2s forwards; }
+@keyframes dash-strike-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .dash-strike-reveal, .dash-strike-streak { animation: none; stroke-dashoffset: 0; } }
+.display-heading .dash-name-box {
+  left: 0; top: calc(.5em + .4em); width: max-content; max-width: min(6.2em, calc(100vw - 13.4vw));
+  white-space: normal; line-height: 1;
+  transform: translateY(-100%) rotate(-6deg); transform-origin: 50% 100%;
+  animation: dash-name-in .7s ease .3s backwards;
+}
+.dash-name { display: block; line-height: .95; text-align: left; overflow-wrap: anywhere; text-wrap: balance; }
+/* Room above YOUR for the name, which grows upwards. */
+.display-heading.dash-owned { padding-top: .5em; }
+@keyframes dash-name-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .display-heading .dash-name-box { animation: none; } }
+.dash-add { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 6px; padding: 16px 22px; color: var(--ink); background: var(--blue); font: 700 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; transition: background .2s ease; }
+.dash-add:hover { background: var(--cream); }
+.dash-block { margin-top: 11vh; }
+.dash-empty, .dash-clear { margin-top: 11vh; }
+/* Patterns section is the last thing on the page: no legal block under it, so only a short bottom pad instead of the landing page's seam strip. */
+.helmet-section.dash-patterns { padding-bottom: clamp(40px, 6vh, 72px); }
+.dash-clear { margin-top: 0; }
+.conflicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+
+/* Bar-wipe entrance for the two shift rows of an overview conflict card (IssueCard `reveal`, Dashboard.tsx).
+   Each row's text is hidden until a solid bar (#7A93A8) has slid in from the left and covers the row; the bar holds for a beat,
+   then pulls out to the right (its left edge sweeps across while its right end stays put) and uncovers the text, left to right. Row 2 plays the same sequence --v-stagger later (a short beat, so the second bar trails the first by a clear step).
+   The bar is the row's ::after, inset to the row's padding box, so it stops at the row's 1px border-top: the two bars are
+   separated by exactly that border line. Plays once, on view entry (.is-in), and is time-based, not scroll-scrubbed. */
+.v-reveal, .v-reveal-list { --v-dur: .8s; --v-stagger: .05s; }
+.v-reveal > div { position: relative; }
+.v-reveal > div:nth-child(2) { --v-delay: var(--v-stagger); }
+.v-reveal > div > span { opacity: 0; }
+.v-reveal > div::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--blue, #7A93A8); clip-path: inset(0 100% 0 0); }
+.v-reveal.is-in > div > span { opacity: 1; animation: v-reveal-text var(--v-dur) linear var(--v-delay, 0s) both; }
+.v-reveal.is-in > div::after { animation: v-reveal-bar var(--v-dur) linear var(--v-delay, 0s) both; will-change: clip-path; }
+/* 0-32% slide in from the left, 32-44% full width, 44-100% pull out to the right. The text switches on at 38%, while the bar fully covers it. */
+@keyframes v-reveal-bar {
+  0% { clip-path: inset(0 100% 0 0); animation-timing-function: cubic-bezier(.77, 0, .18, 1); }
+  32%, 44% { clip-path: inset(0 0 0 0); animation-timing-function: cubic-bezier(.77, 0, .18, 1); }
+  100% { clip-path: inset(0 0 0 100%); }
+}
+@keyframes v-reveal-text { 0%, 38% { opacity: 0; } 38.01%, 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .v-reveal > div > span { opacity: 1; }
+  .v-reveal > div::after { display: none; }
+  .v-reveal.is-in > div > span, .v-reveal.is-in > div::after { animation: none; }
+}
+
+/* The same bar-wipe on the Active shifts list (ShiftList, Dashboard.tsx). Each .shift-item plays it, using the keyframes and the
+   --v-dur / --v-stagger above: the bar is the ::after of its .swipe-surface (so it stops at the item's 1px border-bottom, and the bars
+   of neighbouring items are separated by that line) and covers the row and its note. Item n starts n * --v-stagger after the first
+   (capped at the 8th, so a long list does not drag). The list plays once, when it first scrolls into view (.is-in). */
+.v-reveal-list > .shift-item { --v-delay: calc(var(--v-i, 0) * var(--v-stagger)); }
+.v-reveal-list > .shift-item:nth-child(2) { --v-i: 1; }
+.v-reveal-list > .shift-item:nth-child(3) { --v-i: 2; }
+.v-reveal-list > .shift-item:nth-child(4) { --v-i: 3; }
+.v-reveal-list > .shift-item:nth-child(5) { --v-i: 4; }
+.v-reveal-list > .shift-item:nth-child(6) { --v-i: 5; }
+.v-reveal-list > .shift-item:nth-child(7) { --v-i: 6; }
+.v-reveal-list > .shift-item:nth-child(n+8) { --v-i: 7; }
+.v-reveal-list > .shift-item > .swipe-surface > * { opacity: 0; }
+.v-reveal-list > .shift-item > .swipe-surface::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: var(--blue, #7A93A8); clip-path: inset(0 100% 0 0); }
+.v-reveal-list.is-in > .shift-item > .swipe-surface > * { opacity: 1; animation: v-reveal-text var(--v-dur) linear var(--v-delay, 0s) both; }
+.v-reveal-list.is-in > .shift-item > .swipe-surface::after { animation: v-reveal-bar var(--v-dur) linear var(--v-delay, 0s) both; will-change: clip-path; }
+@media (prefers-reduced-motion: reduce) {
+  .v-reveal-list > .shift-item > .swipe-surface > * { opacity: 1; }
+  .v-reveal-list > .shift-item > .swipe-surface::after { display: none; }
+  .v-reveal-list.is-in > .shift-item > .swipe-surface > *, .v-reveal-list.is-in > .shift-item > .swipe-surface::after { animation: none; }
+}
+.issue { justify-content: space-between; }
+.dash-block .calendar-title-row { margin-top: 0; }
+.stats-label-dark { color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .13em; }
+.dash-block .calendar-title-row { margin-bottom: 26px; }
+
+
+.shift-list { margin: 0; }
+.shift-item { border-bottom: 1px solid var(--line-dark); }
+.shift-row { display: grid; grid-template-columns: 9% 20% 1fr auto 44px; align-items: center; gap: 1rem; padding: 24px 0; transition: padding .35s var(--ease); }
+.shift-row:hover { padding-left: 16px; }
+.shift-row.is-risk .race-place { color: var(--blue); }
+.shift-row .race-time { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 140px; }
+.shift-note { max-width: 640px; margin: -8px 0 0; padding: 0 0 22px calc(29% + 2rem); color: var(--cream-muted); font-size: 15px; line-height: 1.3; }
+.flag { padding: 5px 8px; border: 1px solid var(--line-dark); color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.flag-risk { color: var(--ink); background: var(--blue); border-color: var(--blue); }
+.flag-warn { color: var(--blue); border-color: var(--blue); }
+.remove { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line-dark); border-radius: 50%; transition: color .2s ease, background .2s ease, border-color .2s ease; }
+.remove:hover, .remove:focus-visible { color: var(--ink); background: var(--cream); border-color: var(--cream); }
+
+/* Swipe to cancel (components/SwipeToCancel.tsx). The row slides over a blue panel that holds the label; the component
+   sets --sx (offset in px) and --p (progress, 0 to 1) while it is dragged, and data-state: idle, drag, commit, collapse.
+   The commit and collapse times match SLIDE_MS and COLLAPSE_MS in the component. */
+.swipe { position: relative; overflow: hidden; transition: height .34s var(--dash-out), opacity .3s ease, border-color .34s ease; }
+.swipe-under { position: absolute; inset: 0; background: var(--blue); color: var(--ink); }
+.swipe-cue { position: absolute; top: 50%; left: 100%; display: inline-flex; align-items: center; gap: 10px; margin-left: 24px; font: 700 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; opacity: calc(var(--p, 0) * 1.7 - .25); transform: translate3d(calc(var(--sx, 0) * 1px), -50%, 0); transition: transform .55s var(--dash-out), opacity .25s ease; }
+.swipe-surface { position: relative; background: var(--ink); touch-action: pan-y pinch-zoom; transform: translate3d(calc(var(--sx, 0) * 1px), 0, 0); transition: transform .55s var(--dash-out); }
+@media (hover: hover) and (pointer: fine) { .swipe-surface { cursor: grab; } }
+.swipe[data-state="drag"] { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+.swipe[data-state="drag"] .swipe-surface { will-change: transform; }
+.swipe[data-state="drag"] .swipe-surface, .swipe[data-state="drag"] .swipe-cue { transition: none; }
+.swipe[data-state="commit"] .swipe-surface, .swipe[data-state="commit"] .swipe-cue { transition: transform .26s var(--ease), opacity .26s ease; }
+.swipe[data-state="collapse"] { opacity: 0; border-bottom-color: transparent; pointer-events: none; }
+.swipe[data-state="collapse"] .swipe-surface, .swipe[data-state="collapse"] .swipe-cue { transition: none; }
+@media (prefers-reduced-motion: reduce) { .swipe, .swipe-surface, .swipe-cue { transition: none; } }
+/* The line above the list names the gesture for the device in use. */
+.swipe-hint { text-transform: uppercase; }
+.swipe-hint .hint-touch { display: none; }
+@media (pointer: coarse) { .swipe-hint .hint-touch { display: inline; } .swipe-hint .hint-fine { display: none; } }
+
+.rules { display: flex; flex-wrap: wrap; align-items: end; gap: 34px; margin-top: 34px; }
+.rules .v-foot { flex: 1 1 260px; max-width: 360px; margin: 0; }
+.stepper { display: flex; flex-direction: column; gap: 10px; }
+.stepper > div { display: flex; align-items: center; gap: 14px; }
+.stepper strong { min-width: 74px; text-align: center; font: 500 11px var(--font-mono); letter-spacing: .1em; }
+.stepper button { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--line-dark); border-radius: 50%; transition: background .2s ease, color .2s ease; }
+.stepper button:hover { color: var(--ink); background: var(--cream); }
+
+.dash-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4vw; max-width: 1150px; margin: 0 auto 11vh; }
+.dash-stats .stat-block { margin: 0; }
+.dash-stats .stat-block strong { font-size: clamp(3.4rem, 9vw, 8.5rem); }
+.dash-stats .stat-block span { margin-top: 20px; }
+.helmet-card { display: block; width: 100%; text-align: left; }
+/* Pattern tiles: the kind and length on top, and whether a logged shift of this pattern is running or next. */
+.tile-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 6px 12px; }
+.tile-state { display: inline-flex; align-items: center; gap: 7px; color: rgba(17,17,18,.62); font: 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.tile-state.is-live { color: var(--ink); }
+.tile-now { position: absolute; top: -6px; bottom: -6px; width: 2px; margin-left: -1px; background: var(--blue-deep); }
+.pattern-use { display: block; padding-top: 6px; color: rgba(17,17,18,.56); font: 9px var(--font-mono); letter-spacing: .11em; text-transform: uppercase; }
+
+.undo { position: fixed; left: 50%; bottom: 24px; z-index: 56; display: flex; align-items: center; gap: 22px; padding: 14px 18px; transform: translateX(-50%); color: var(--ink); background: var(--cream); font: 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; animation: undo-in .45s cubic-bezier(.16,1,.3,1) backwards; }
+.undo button { color: var(--blue-deep); border-bottom: 1px solid currentColor; font: inherit; letter-spacing: inherit; }
+/* Keeps the translateX(-50%) centring in every frame; a plain translateY keyframe would knock the toast off-centre. */
+@keyframes undo-in { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .undo { animation: ov-fade-in .2s ease backwards; } }
+
+/* Add-shift overlay: a full-screen page that slides up over the dashboard and slides back down on close.
+   .is-closing is set for OVERLAY_EXIT_MS (Dashboard.tsx), then the overlay unmounts. */
+.ov { position: fixed; inset: 0; z-index: 55; overflow-y: auto; overscroll-behavior: contain; color: var(--cream); background: var(--ink); box-shadow: 0 -24px 60px rgba(0,0,0,.35); animation: ov-in .6s cubic-bezier(.16,1,.3,1) backwards; }
+.ov.is-closing { pointer-events: none; animation: ov-out .45s cubic-bezier(.7,0,.84,0) forwards; }
+@keyframes ov-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ov-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@keyframes ov-fade-in { from { opacity: 0; } }
+@keyframes ov-fade-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .ov { animation: ov-fade-in .2s ease backwards; }
+  .ov.is-closing { animation: ov-fade-out .2s ease forwards; }
+}
+.ov-bar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 76px; padding: 0 34px; background: rgba(17,17,18,.96); border-bottom: 1px solid var(--line-dark); }
+.ov-status { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.ov-status.is-risk { color: var(--blue); }
+.ov-body { display: grid; grid-template-columns: 1.1fr .9fr; gap: 6vw; max-width: 1150px; margin: 0 auto; padding: 8vh 6.7vw 14vh; }
+.ov-title { font-size: clamp(4rem, 9vw, 8.5rem); }
+.ov-step { display: flex; flex-direction: column; gap: 12px; margin-top: 7vh; }
+.pat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pat { display: flex; flex-direction: column; gap: 4px; padding: 12px; text-align: left; border: 1px solid var(--line-dark); transition: background .2s ease, color .2s ease, border-color .2s ease; }
+.pat:hover { border-color: var(--blue); }
+.pat strong { font: 600 16px/1 var(--font-display); letter-spacing: -.06em; text-transform: uppercase; }
+.pat span { font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.pat.is-on { color: var(--ink); background: var(--cream); border-color: var(--cream); }
+.chip { cursor: pointer; transition: border-color .2s ease; }
+.chip:hover { border-color: var(--blue); }
+.field { padding: 9px 12px; color: var(--cream); background: transparent; border: 1px solid var(--line-dark); border-radius: 0; font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color-scheme: dark; }
+.field:focus { outline: 0; border-color: var(--blue); }
+.custom { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.custom .field { padding: 12px; }
+.custom-times { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* "Save as a pattern": a round box with a hairline edge and a thin check that draws itself. The native input stays (hidden
+   appearance only), so keyboard, screen readers and the label's click target all behave as a checkbox. */
+.keep { display: inline-flex; align-items: center; align-self: flex-start; gap: 12px; min-height: 36px; color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: color .25s ease; }
+@media (pointer: coarse) { .keep { min-height: 44px; } }
+.keep-box { position: relative; display: grid; flex: none; place-items: center; width: 20px; height: 20px; }
+.keep input { appearance: none; -webkit-appearance: none; grid-area: 1 / 1; width: 20px; height: 20px; margin: 0; border: 1px solid var(--line-dark); border-radius: 50%; background: transparent; cursor: pointer; transition: border-color .25s ease, background-color .4s var(--dash-out), box-shadow .35s var(--dash-out), transform .25s var(--dash-out); }
+.keep input:checked { background: var(--blue); border-color: var(--blue); }
+.keep svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: 0; transition: stroke-dashoffset .3s var(--dash-out), opacity .12s ease .18s; }
+.keep input:checked + svg { stroke-dashoffset: 0; opacity: 1; transition: stroke-dashoffset .45s var(--dash-out) .06s, opacity 0s; }
+@media (hover: hover) {
+  .keep:hover { color: var(--cream); }
+  .keep:hover input:not(:checked) { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(122,147,168,.12); }
+  .keep:hover input:checked { box-shadow: 0 0 0 4px rgba(122,147,168,.18); }
+}
+.keep input:focus-visible { outline: 0; border-color: var(--blue); box-shadow: 0 0 0 4px rgba(122,147,168,.3); }
+.keep:active input { transform: scale(.9); }
+@media (prefers-reduced-motion: reduce) { .keep, .keep input, .keep svg, .keep input:checked + svg { transition-duration: 0s; transition-delay: 0s; } }
+
+/* "+ Add platform": a chip that reads as an action, not a choice, so it takes the accent as text rather than as a fill. */
+.chip-add { display: inline-flex; align-items: center; gap: 7px; color: var(--blue); border-color: rgba(122,147,168,.5); transition: border-color .2s ease, background .2s ease, color .2s ease; }
+.chip-add svg { flex: none; transition: transform .45s var(--ease); }
+@media (hover: hover) { .chip-add:hover { color: var(--cream); background: rgba(122,147,168,.14); border-color: var(--blue); } .chip-add:hover svg { transform: rotate(90deg); } }
+.chip-add[aria-expanded="true"] { border-color: var(--blue); background: rgba(122,147,168,.14); }
+.chip-add:active { background: rgba(122,147,168,.22); }
+@media (prefers-reduced-motion: reduce) { .chip-add svg { transition: none; } }
+.ov-risk { position: sticky; top: 104px; display: flex; flex-direction: column; gap: 14px; align-self: start; max-height: calc(100svh - 128px); overflow-y: auto; }
+.v-save { cursor: pointer; transition: background .2s ease; }
+.v-save:hover:not(:disabled) { background: var(--cream); }
+.v-save:disabled { opacity: .35; cursor: not-allowed; }
+:where(button, input):focus-visible { outline: 1px solid var(--blue); outline-offset: 3px; }
+
+@media (max-width: 760px) {
+  .dash-section { padding: 110px 22px 12vh; }
+  .dash-top .mobile-fit-heading { font-size: clamp(3.25rem, 13vw, 10rem); }
+  .dash-meta { gap: 28px; width: 100%; flex-wrap: wrap; }
+  .display-heading .dash-name-box { max-width: calc(100vw - 44px); }
+  .dash-add { width: 100%; justify-content: center; }
+  .shift-row { grid-template-columns: 70px 1fr 40px; gap: 6px 12px; padding: 20px 0; }
+  .shift-row .race-number { display: none; }
+  .shift-row .race-date { grid-row: 1 / 3; align-self: start; padding-top: 3px; }
+  .shift-row .race-place { font-size: 18px; }
+  .shift-row .race-time { display: flex; grid-column: 2; grid-row: 2; flex-direction: row; flex-wrap: wrap; min-width: 0; margin-top: 4px; }
+  .shift-row .remove { grid-column: 3; grid-row: 1 / 3; }
+  .shift-note { padding-left: 82px; }
+  .dash-stats { gap: 14px; }
+  .dash-stats .stat-block strong { font-size: 3.2rem; }
+  .dash-stats .stat-block span { font-size: 9px; }
+  .ov-bar { height: 66px; padding: 0 18px; }
+  .ov-body { display: flex; flex-direction: column; gap: 9vh; padding: 5vh 22px 12vh; }
+  .ov-risk { position: static; max-height: none; }
+  .undo { width: calc(100% - 36px); justify-content: space-between; }
+}
+
+/* Link to the account page (pages/Account.tsx). The nav copy hides on phones with the rest of .nav-store; this one is the phone's way in. */
+.dash-account { margin-bottom: 6px; }
+@media (min-width: 761px) { .dash-account { display: none; } }

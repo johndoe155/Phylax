@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="logo-mark" viewBox="0 0 100 100" width="100" height="100" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Phylax logo, sketch variant 1">
+  <title>Phylax logo, sketch variant 1</title>
+  <defs>
+    <filter id="phylax-pencil-1" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="13" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <g filter="url(#phylax-pencil-1)">
+    <!-- main pass -->
+    <g>
+      <path d="M10.14,18.67 C28.3,18.71 47.04,19.45 65.62,18.27" stroke-width="1.86"/>
+      <path d="M63.86,17.45 C63.91,29.87 63.21,42.65 63.65,55.49" stroke-width="1.73"/>
+      <path d="M65.22,52.88 C47.38,54.43 28.3,54.27 9.72,53.94" stroke-width="1.84"/>
+      <path d="M11.84,55.32 C11.29,42.56 11.53,29.48 11.42,16.87" stroke-width="1.85"/>
+      <path d="M34.58,46.58 C53.8,46.21 71.94,46.36 90.25,45.82" stroke-width="1.86"/>
+      <path d="M88.33,45.11 C88.43,58.34 87.63,71.06 87.89,82.82" stroke-width="1.85"/>
+      <path d="M88.99,81.01 C71.98,80.53 51.43,82.1 34.02,81.19" stroke-width="1.74"/>
+      <path d="M35.85,82.56 C36.68,69.9 36.36,56.03 36.19,44.73" stroke-width="1.74"/>
+    </g>
+    <!-- loose second pass -->
+    <g>
+      <path d="M10.96,17.87 C28.72,18.17 48.06,18.94 66.51,17.86" stroke-width="1" opacity="0.5"/>
+      <path d="M64.61,17.03 C64.27,29.04 63.63,42.32 63.93,55.27" stroke-width="1" opacity="0.5"/>
+      <path d="M65.97,52.63 C47.97,53.86 29.13,53.87 10.34,53.17" stroke-width="1" opacity="0.5"/>
+      <path d="M12.28,54.61 C11.97,42.12 11.89,28.75 12.11,16.16" stroke-width="1" opacity="0.5"/>
+      <path d="M34.2,46.94 C53.05,46.75 71.43,46.6 89.46,46.12" stroke-width="1" opacity="0.5"/>
+      <path d="M87.63,45.37 C88.05,58.36 87.33,71.16 87.58,82.86" stroke-width="1" opacity="0.5"/>
+      <path d="M88.78,81.29 C71.73,81.04 51.43,82.33 33.78,81.43" stroke-width="1" opacity="0.5"/>
+      <path d="M35.56,83.09 C36.34,70.5 35.67,56.66 35.46,45.23" stroke-width="1" opacity="0.5"/>
+    </g>
+    <!-- hatching -->
+    <g opacity="0.8">
+      <path d="M37.21,50.62 L40.13,47.62" stroke-width="0.95" opacity="0.85"/>
+      <path d="M37.66,52.41 L42.12,47.32" stroke-width="0.9" opacity="0.83"/>
+      <path d="M39.88,52.35 L43.95,47.5" stroke-width="0.93" opacity="0.78"/>
+      <path d="M42.04,51.91 L46.52,47.62" stroke-width="0.93" opacity="0.78"/>
+      <path d="M44.19,52.19 L48.52,47.84" stroke-width="0.94" opacity="0.76"/>
+      <path d="M46.3,52.58 L50.33,47.72" stroke-width="0.87" opacity="0.76"/>
+      <path d="M48.45,52.32 L52.61,47.45" stroke-width="0.9" opacity="0.84"/>
+      <path d="M50.31,52.67 L54.38,47.6" stroke-width="0.86" opacity="0.8"/>
+      <path d="M52.59,52.37 L56.95,47.48" stroke-width="0.91" opacity="0.81"/>
+      <path d="M54.58,52.17 L58.8,47.43" stroke-width="0.93" opacity="0.85"/>
+      <path d="M56.68,52.4 L61.36,47.77" stroke-width="0.99" opacity="0.8"/>
+      <path d="M58.94,52.67 L62.46,48.42" stroke-width="0.97" opacity="0.77"/>
+      <path d="M60.68,52.15 L62.71,50.3" stroke-width="0.97" opacity="0.78"/>
+      <path d="M13.82,28.56 L17.66,23.92" stroke-width="0.97" opacity="0.84"/>
+      <path d="M82.17,52.76 L86.65,48.28" stroke-width="0.83" opacity="0.8"/>
+      <path d="M13.46,32.06 L17.66,27.81" stroke-width="0.89" opacity="0.82"/>
+      <path d="M82.32,56.68 L86.67,52.33" stroke-width="0.94" opacity="0.76"/>
+      <path d="M13.49,35.85 L17.57,31.63" stroke-width="0.84" opacity="0.84"/>
+      <path d="M82.22,60.25 L86.47,56.43" stroke-width="0.86" opacity="0.84"/>
+      <path d="M13.53,39.64 L17.48,35.39" stroke-width="0.94" opacity="0.82"/>
+      <path d="M81.87,64.59 L86.33,59.82" stroke-width="0.9" opacity="0.84"/>
+      <path d="M13.8,43.69 L17.84,39.34" stroke-width="0.87" opacity="0.82"/>
+      <path d="M82.14,68.37 L86.7,63.75" stroke-width="0.9" opacity="0.76"/>
+      <path d="M14.01,47.36 L17.67,42.85" stroke-width="0.9" opacity="0.84"/>
+      <path d="M82.4,71.67 L86.42,67.76" stroke-width="0.97" opacity="0.84"/>
+      <path d="M13.37,51.11 L17.71,46.17" stroke-width="0.84" opacity="0.84"/>
+      <path d="M82.05,75.62 L86.42,71.26" stroke-width="0.92" opacity="0.8"/>
+      <path d="M81.8,79.27 L86.72,75.41" stroke-width="0.84" opacity="0.82"/>
+      <path d="M17.92,52.19 L20.52,49.58" stroke-width="0.88" opacity="0.8"/>
+      <path d="M22.29,52.47 L24.59,49.16" stroke-width="0.84" opacity="0.83"/>
+      <path d="M26.51,52.36 L29.15,49.39" stroke-width="0.97" opacity="0.77"/>
+      <path d="M30.58,52.01 L33.28,49.47" stroke-width="0.95" opacity="0.78"/>
+      <path d="M80.86,47.79 L78.46,50.41" stroke-width="0.88" opacity="0.81"/>
+      <path d="M77.18,47.79 L74.16,50.91" stroke-width="0.83" opacity="0.82"/>
+      <path d="M72.44,47.93 L70.1,50.5" stroke-width="0.98" opacity="0.79"/>
+      <path d="M68.48,48 L65.92,50.36" stroke-width="0.83" opacity="0.84"/>
+    </g>
+    <!-- variant details -->
+    <g>
+      <path d="M34.1,81 C33,81.2 32,81.9 31.3,83.1" stroke-width="1.4"/>
+      <path d="M88.2,45.1 C88.9,44.4 89.7,44.1 90.6,44.2" stroke-width="1.2" opacity="0.8"/>
+    </g>
+  </g>
+</svg>

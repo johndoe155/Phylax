@@ -1,0 +1,178 @@
+--- client/src/hooks/useGapSequence.ts
++++ client/src/hooks/useGapSequence.ts
+@@ -9,35 +9,44 @@ import { useEffect, type RefObject } from "react";
+  *   .gap-space    an empty scroll spacer under the stage: the extra distance the stage stays pinned
+  *   .gap-curtain  "The gap" copy, a full-viewport panel that scrolls up over the pinned stage
+  *
+- * Scroll position is the only clock, so everything is a 1:1 scrub (no snapping, no timers). The timeline starts
+- * the moment the split illustration comes into view: when the top of the grid (the time axis and the three
+- * app rows, in their split state) reaches ENTER of the way down the viewport. Until then nothing moves, so the
+- * first thing seen is always the split grid, then the merge, then the bars: no phase is skipped or already under
+- * way when the grid appears. The merge and the first bar outlines play while the grid scrolls up to the pin. The stage pins when the
+- * section's top reaches the top of the viewport; the later steps play while it is pinned, the finished
+- * diagram holds for a beat, and only then does the curtain start to rise.
++ * Scroll position is the only clock, so everything is a 1:1 scrub (no snapping, no timers). The merge is bound to
++ * scroll from the first pixel of the grid that enters the viewport: it starts when the top of the grid (the time
++ * axis and the three app rows, in their split state) reaches MERGE_ENTER of the way down the viewport (1 = the
++ * bottom edge, so as soon as any part of either half is on screen). Until then nothing moves, so the first thing
++ * seen is always the split grid, then the merge, then the bars: no phase is skipped or already under way when
++ * the grid appears. The merge and the first bar outlines play while the grid scrolls up to the pin. The stage
++ * pins when the section's top reaches the top of the viewport; the later steps play while it is pinned, the
++ * finished diagram holds for a beat, and only then does the curtain start to rise.
+  *
+  * The timeline is measured in *steps*: one step is one `--gap-phase` of scrolling (about 30% of the viewport
+  * height), a single flick or a few wheel notches. Each of the five steps plays one whole phase. Each phase's
+  * progress (0 → 1) is written to a CSS custom property on the section; index.css turns those into transforms,
+  * clip-paths and dash offsets. Scrolling back up plays everything in reverse.
+  *
+- *   (A) split layout: the grid content cut in two separated halves,   the opening state (t = 0, pre-scroll),
+- *       schedule hidden                                               held until the section enters
+- *   1   the two grid halves slide together and merge into the         --merge  (one whole, distinct gesture;
+- *       unified grid, centred in the card                              not skipped, nothing else before it)
++ *   (A) split layout: the grid content cut in two far-apart halves    the opening state (before the merge),
++ *       (edge to edge, partly clipped by the viewport), enlarged,      held until the grid enters the viewport
++ *       schedule hidden
++ *   1   the two grid halves slide together and shrink back to their   --merge  (one whole, distinct gesture;
++ *       natural size, merging into the unified grid, centred in the    not skipped, nothing else before it).
++ *       card. Translation and scale both follow --merge, so they       It starts MERGE_ENTER of the way down the
++ *       finish together, where step 1 has always ended.                viewport and ends exactly where it always did.
+  *   2   bar 1 / bar 2: outlines (staggered), fills, text
+  *   3   bars duplicate down into the Phylax lane; their intersection takes the overlap colour
+  *   4   overlap bar: outline, then striped fill (the stripes themselves animate on a CSS clock)
+  *   5   "OVERLAP · 6A–7A" label, then the supporting line
+  *
+- * The complex sequence (2–5) only begins once the merge is complete: step 2 starts exactly where the merge
+- * ends. Nothing but the merge is visible before step 2, and the finished state holds for a short tail while
++ * The step clock (and with it the pin, the spacer and steps 2–5) is anchored where it always was, at CLOCK_START.
++ * Only the merge reaches back before that anchor, to MERGE_ENTER, so it is spread over a longer stretch of scroll
++ * while still finishing at the same scroll position as before. The complex sequence (2–5) only begins once the
++ * merge is complete: step 2 starts exactly where the merge ends. Nothing but the merge is visible before step 2, and the finished state holds for a short tail while
+  * still pinned, then the curtain (pure CSS, native scroll) rises over it.
+  */
+ 
+ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
++// A gentler ease-out for the merge: it now spans a longer, edge-to-edge travel, and a cubic would spend most of it
++// in the first moments of scroll. The quadratic still lands softly (zero speed at the end) but stays parallax-like.
++const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
+ const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+ const linear = (t: number) => t;
+ 
+@@ -48,12 +57,18 @@ const TAIL = 0.4;
+ const STEPS = 5;
+ /** Total scroll distance of the timeline in steps. Written to --gap-span, which sizes the spacer in index.css. */
+ const SPAN = LEAD + STEPS + TAIL;
+-/** Where the timeline starts, as a fraction of the viewport height from the top: it begins when the top of the grid
+- * (`.gap-lanes`, the split illustration) reaches this line, so the grid is already coming into view when the merge
+- * starts. The distance scrolled before the pin is the lead-in; it is measured, not hard-coded (it depends on where
+- * the grid sits in the stage), and written to --gap-lead so the CSS spacer is sized from the same number. Raise it
+- * to start earlier, lower it to start later (0.5 = grid top at mid-screen). */
+-const ENTER = 0.85;
++/** Where the step clock is anchored, as a fraction of the viewport height from the top: step 1 (the merge) used to
++ * begin when the top of the grid (`.gap-lanes`, the split illustration) reached this line, so the merge *ends* one
++ * step later. Everything after the merge (steps 2–5, the pin spacer, the curtain) is measured from this anchor, so
++ * it must not move: that is what keeps the merge finishing at the same scroll position as before. The distance
++ * scrolled before the pin is the lead-in; it is measured, not hard-coded (it depends on where the grid sits in the
++ * stage), and written to --gap-lead so the CSS spacer is sized from the same number. */
++const CLOCK_START = 0.85;
++/** Where the merge starts, on the same scale: the grid's top edge at this fraction of the viewport height. 1 is the
++ * bottom edge of the viewport, i.e. the merge is bound to scroll the instant any part of either half (the halves
++ * share one top edge) enters the viewport. The scroll between this line and CLOCK_START is added in front of
++ * step 1, so the merge is stretched, not moved: it still ends where step 1 ends. */
++const MERGE_ENTER = 1;
+ 
+ type Phase = { v: string; step: 1 | 2 | 3 | 4 | 5; from: number; to: number; ease: (t: number) => number };
+ 
+@@ -61,8 +76,9 @@ type Phase = { v: string; step: 1 | 2 | 3 | 4 | 5; from: number; to: number; eas
+ // (the merge runs its full step), so the phase is complete a moment before the next gesture begins, and
+ // nothing from a later step starts early.
+ const PHASES: Phase[] = [
+-  // 1. merge: the two grid halves slide together into the unified grid
+-  { v: "--merge", step: 1, from: 0, to: 1, ease: easeOut },
++  // 1. merge: the two grid halves slide together (and shrink to their natural size) into the unified grid. It is
++  //    not listed here: it starts before the step clock does (see MERGE_ENTER), so it is written by `write` from
++  //    its own, longer window, which ends where this step would have ended (t = LEAD + 1).
+ 
+   // 2. outlines: bar 2 starts drawing before bar 1's outline finishes
+   { v: "--b1-line", step: 2, from: 0.0, to: 0.38, ease: linear },
+@@ -87,6 +103,10 @@ const PHASES: Phase[] = [
+   { v: "--note", step: 5, from: 0.35, to: 0.9, ease: easeOut },
+ ];
+ 
++/** The merge's window on the step clock: it ends where step 1 always ended, and starts `mergeFrom` (≤ LEAD, measured
++ * from MERGE_ENTER) earlier. Written to --merge, which drives both the translation and the scale of the halves. */
++const MERGE_TO = LEAD + 1;
++
+ // Resolve each phase's step-relative window to absolute positions on the step clock.
+ const TIMELINE = PHASES.map(({ v, step, from, to, ease }) => ({
+   v,
+@@ -111,11 +131,14 @@ export function useGapSequence(
+     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+     let frame = 0;
+     let last = -1;
+-    // Scroll distance between the timeline starting and the pin beginning, in px (see ENTER).
++    // Scroll distance between the step clock starting and the pin beginning, in px (see CLOCK_START).
+     let lead = 0;
++    // How much earlier than the step clock the merge starts, in px of scroll (see MERGE_ENTER).
++    let early = 0;
+ 
+-    // `t` is the scroll position on the step clock (0 → SPAN).
+-    const write = (t: number) => {
++    // `t` is the scroll position on the step clock (-early → SPAN); `mergeFrom` is where the merge starts on it.
++    const write = (t: number, mergeFrom: number) => {
++      section.style.setProperty("--merge", easeOutQuad(clamp01((t - mergeFrom) / (MERGE_TO - mergeFrom))).toFixed(4));
+       for (const { v, from, to, ease } of TIMELINE) {
+         section.style.setProperty(v, ease(clamp01((t - from) / (to - from))).toFixed(4));
+       }
+@@ -127,29 +150,42 @@ export function useGapSequence(
+     const measure = () => {
+       // The grid's top edge, measured from the stage's top: the same whether the stage is pinned or not.
+       const lanesStart = lanes.getBoundingClientRect().top - stage.getBoundingClientRect().top;
+-      lead = Math.max(0, ENTER * stage.offsetHeight - lanesStart);
++      lead = Math.max(0, CLOCK_START * stage.offsetHeight - lanesStart);
+       section.style.setProperty("--gap-lead", `${lead}px`);
++      // The section's top edge is at `lead` when the step clock starts. The grid's top edge reaches MERGE_ENTER of the
++      // way down the viewport when the section's top is at this much (the stage sits at the section's top until the
++      // pin), so the merge starts that much scroll earlier.
++      early = Math.max(0, MERGE_ENTER * window.innerHeight - lanesStart - lead);
+       const tracks = section.querySelectorAll<HTMLElement>(".gap-pane-left .lane-track");
+       if (tracks.length < 3) return;
+-      const target = tracks[2].getBoundingClientRect().top;
+-      section.style.setProperty("--dy1", `${tracks[0].getBoundingClientRect().top - target}px`);
+-      section.style.setProperty("--dy2", `${tracks[1].getBoundingClientRect().top - target}px`);
++      // Measure in layout space (offsetTop), never with getBoundingClientRect: the panes are scaled (and moved) by
++      // the merge, and a bounding rect includes that transform. The duplicates are translated inside the pane, in
++      // its own unscaled units, so a rect measured while the pane is enlarged (or from a resize mid-merge) would
++      // overshoot by the current scale and park the clones above their sources. The tracks share one offsetParent
++      // (the positioned pane), so their offsetTop difference is the true layout distance at any scale.
++      const target = tracks[2].offsetTop;
++      section.style.setProperty("--dy1", `${tracks[0].offsetTop - target}px`);
++      section.style.setProperty("--dy2", `${tracks[1].offsetTop - target}px`);
+     };
+ 
+     const update = () => {
+       frame = 0;
+       if (reduced.matches) {
+-        if (last !== SPAN) { write(SPAN); last = SPAN; }
++        if (last !== SPAN) { write(SPAN, 0); last = SPAN; }
+         return;
+       }
+       // Before the pin the stage sits at the section's top edge, so that edge's distance from the top of the
+-      // viewport is the scroll clock: `lead` when the grid comes into view (t = 0), 0 when the pin begins,
+-      // then -spacer at the end of the hold (t = SPAN).
++      // viewport is the scroll clock: `lead` at the step clock's anchor (t = 0), 0 when the pin begins, then
++      // -spacer at the end of the hold (t = SPAN). The merge also runs on it, from `early` px before the anchor
++      // (t < 0) when the grid first enters the viewport, so t may go negative, down to the merge's start.
+       const distance = lead + space.offsetHeight;
+-      const t = distance > 0 ? clamp01((lead - section.getBoundingClientRect().top) / distance) * SPAN : SPAN;
++      const stepPx = distance / SPAN;
++      const mergeFrom = stepPx > 0 ? -early / stepPx : 0;
++      const raw = stepPx > 0 ? (lead - section.getBoundingClientRect().top) / stepPx : SPAN;
++      const t = Math.min(SPAN, Math.max(mergeFrom, raw));
+       if (t === last) return;
+       last = t;
+-      write(t);
++      write(t, mergeFrom);
+     };
+ 
+     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };

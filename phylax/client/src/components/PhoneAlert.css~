@@ -1,0 +1,195 @@
+/* "The alert, by text" phone (Alerts, card 01). Driven by PhoneAlert.tsx / lib/phoneAlertTimeline.ts:
+   data-lock / data-n1 / data-n2 / data-hot / data-paused on the root, --rem (lit ticks, 0-36), and .is-out / .is-reset
+   (those two only ever touch the dial and the clock). Below the dial and clock, .pa-messages is the messaging viewport: a
+   height-capped scroller that holds the two alerts and the React-rendered preference thread (each .pa-row opens and
+   closes on its own data-open) and is kept scrolled to the newest message by PhoneAlert.tsx. The closing line
+   (.pa-r-verdict) is NOT part of that scroller: it is the last row of .pa-screen, under the viewport.
+   Everything inside the phone is sized from --u (1% of the phone's width), so the whole device scales as one piece. */
+.phone-alert { position: absolute; inset: 0; overflow: hidden; container-type: size; outline: none; }
+/* No card behind the phone: it sits straight on the page. The stage is the clip, and the fade-out at the bottom
+   (it used to be the caption's gradient) now belongs to the phone itself. */
+.pa-stage {
+  --fade: 58px; /* length of the bottom fade-out; the screen (and so the closing line) ends above it, see --clear */
+  position: absolute; inset: 0; display: flex; justify-content: center; padding-top: 64px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%);
+}
+
+/* The phone is taller than the card on purpose: it rises out of the bottom edge, under the fade. Its height follows the
+   card (100cqh), not a fixed number of units, so the screen always ends --clear above the card's bottom edge. That keeps
+   the whole screen, closing line included, clear of the --fade (58px) bottom fade-out. The messaging viewport inside it
+   is capped at --msg-max (tall, not endless): past that the thread scrolls instead of stretching the phone, and the card (below) is sized to that cap. */
+.pa-phone {
+  --pw: min(88cqw, 340px); --u: calc(var(--pw) / 100); --lip: 18px; --clear: calc(var(--fade) + var(--lip)); --msg-max: calc(var(--u) * 120);
+  /* The closing line's breathing room: the same gap above it (from the newest message) and below it (down to where the
+     fade-out begins). --msg-pb is the viewport's own bottom padding, which counts towards the gap above. */
+  --msg-pb: calc(var(--u) * 3); --vgap: max(calc(var(--u) * 5), var(--lip));
+  position: relative; flex: none; width: var(--pw); height: calc(100cqh - 64px + var(--u) * 12); padding: calc(var(--u) * 5);
+  border: 1px solid rgba(245,241,234,.28); border-radius: calc(var(--u) * 9); background: #0b0c0d;
+  box-shadow: 0 0 0 0 rgba(122,147,168,0); transition: box-shadow .8s ease;
+}
+.phone-alert[data-lock="1"] .pa-phone { box-shadow: 0 0 calc(var(--u) * 26) rgba(122,147,168,.16); }
+.pa-phone.is-buzz { animation: pa-buzz .5s linear; }
+@keyframes pa-buzz {
+  0%, 100% { transform: none; }
+  10% { transform: translate3d(calc(var(--u) * -1.3), 0, 0) rotate(-.7deg); }
+  20% { transform: translate3d(calc(var(--u) * 1.3), 0, 0) rotate(.7deg); }
+  30% { transform: translate3d(calc(var(--u) * -1), 0, 0) rotate(-.5deg); }
+  42% { transform: translate3d(calc(var(--u) * 1), 0, 0) rotate(.5deg); }
+  56% { transform: translate3d(calc(var(--u) * -.6), 0, 0); }
+  70% { transform: translate3d(calc(var(--u) * .6), 0, 0); }
+  85% { transform: translate3d(calc(var(--u) * -.3), 0, 0); }
+}
+.pa-island { position: absolute; top: calc(var(--u) * 2.6); left: 50%; width: calc(var(--u) * 26); height: calc(var(--u) * 6.4); transform: translateX(-50%); border-radius: 99px; background: #000; }
+
+.pa-screen > * { flex: none; } /* the dial and clock never squeeze; only the messaging viewport (below) gives way */
+.pa-screen { display: flex; flex-direction: column; height: calc(100cqh - 64px - var(--u) * 5 - var(--clear)); padding-top: calc(var(--u) * 9); }
+/* The loop fades the dial and clock out and swaps them back to idle unseen; the thread is never part of it. */
+.pa-dial, .pa-clock { transition: opacity .35s ease; }
+.phone-alert.is-out .pa-dial, .phone-alert.is-out .pa-clock { opacity: 0; }
+.phone-alert.is-reset .pa-dial, .phone-alert.is-reset .pa-dial *, .phone-alert.is-reset .pa-dial *::before,
+.phone-alert.is-reset .pa-clock, .phone-alert.is-reset .pa-clock * { transition: none !important; animation: none !important; }
+
+/* ---- The window: 36 ticks, one per 5 minutes of CareRev's 3-hour cancellation window ---- */
+.pa-dial { position: relative; flex: none; width: calc(var(--u) * 46); height: calc(var(--u) * 46); margin: 0 auto; }
+.pa-ticks { position: absolute; inset: 0; }
+.pa-ticks i {
+  position: absolute; left: 50%; top: 50%; width: calc(var(--u) * .9); height: calc(var(--u) * 3.8);
+  margin: calc(var(--u) * -23) 0 0 calc(var(--u) * -.45); transform-origin: 50% calc(var(--u) * 23);
+  transform: rotate(calc(var(--i) * 10deg)); background: var(--blue);
+  /* lit if i < --rem, fading across the leading tick; unlit ticks stay faintly visible */
+  opacity: calc(.13 + .87 * clamp(0, var(--rem) - var(--i), 1));
+  transition: background-color .45s ease;
+}
+/* Final hour: the 12 ticks left read brighter than the rest. */
+.phone-alert[data-hot="1"] .pa-ticks i:nth-child(-n+12) { background: var(--cream); }
+.pa-pulse { position: absolute; inset: calc(var(--u) * -1); border: 1px solid var(--cream); border-radius: 50%; opacity: 0; pointer-events: none; }
+.phone-alert[data-hot="1"] .pa-pulse { animation: pa-pulse 2s ease-out infinite; }
+@keyframes pa-pulse { 0% { transform: scale(.92); opacity: .45; } 100% { transform: scale(1.22); opacity: 0; } }
+
+.pa-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.pa-idle, .pa-live, .pa-rest { grid-area: 1 / 1; transition: opacity .35s ease; }
+.pa-idle, .pa-rest { color: var(--cream-muted); font: max(9px, calc(var(--u) * 3)) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.pa-rest { opacity: 0; }
+.pa-live { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 1); opacity: 0; }
+.pa-live small { color: var(--blue); font: max(8px, calc(var(--u) * 2.5)) var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.pa-live b { color: var(--cream); font: 500 calc(var(--u) * 10.5) / .95 var(--font-mono); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.phone-alert[data-lock="1"] .pa-idle { opacity: 0; }
+.phone-alert[data-lock="1"] .pa-live { opacity: 1; }
+/* STOP: the ring drains to rest over .7s (the opacity is driven by --rem, so it gets its own easing here) and the dial says so. */
+.phone-alert[data-paused="1"] .pa-idle { opacity: 0; }
+.phone-alert[data-paused="1"] .pa-rest { opacity: .7; }
+.phone-alert[data-paused="1"] .pa-ticks i { transition: opacity .7s var(--ease), background-color .45s ease; }
+
+.pa-clock { display: flex; justify-content: space-between; margin: calc(var(--u) * 3.4) 0 0; padding-top: calc(var(--u) * 2.4); border-top: 1px solid rgba(245,241,234,.14); color: var(--cream-muted); font: max(9px, calc(var(--u) * 2.8)) var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.pa-clock em { color: var(--cream); font-style: normal; font-variant-numeric: tabular-nums; }
+.pa-closes { opacity: 0; transition: opacity .4s ease; }
+.phone-alert[data-lock="1"] .pa-closes { opacity: 1; }
+
+/* ---- The messaging viewport: the alerts and the thread, scrolling like a messaging app ----
+   Capped at --msg-max and given whatever the screen has left under the dial (never more), so a long conversation scrolls
+   instead of stretching the phone. The top margin keeps scrolled-away text from touching the clock line. The top padding is
+   room for the entrances (the alerts drop in from above, and an overflow container clips at its padding edge, so the drop
+   is kept inside it); the bottom padding keeps the newest message off the edge. The scrollbar is hidden, as on a phone.
+   The top edge is a hard, solid one: a border in the phone's own colour, so scrolled-away messages are cut off cleanly at
+   it (no fade) and it never reads as a drawn line. */
+.pa-screen > .pa-messages {
+  flex: 1 1 0; min-height: 0; max-height: var(--msg-max); margin-top: calc(var(--u) * 2.4);
+  padding: calc(var(--u) * 3.6) 0 var(--msg-pb);
+  border-top: 1px solid #0b0c0d; /* = .pa-phone's background */
+  overflow-x: hidden; overflow-y: auto; overflow-anchor: none; /* the script owns where it is scrolled */
+  scrollbar-width: none; outline: none;
+}
+.pa-messages::-webkit-scrollbar { display: none; }
+.pa-messages:focus-visible { box-shadow: inset 0 0 0 1px rgba(245,241,234,.3); }
+.pa-flow { display: flow-root; } /* one box around everything that scrolls, so its height is what the observer watches */
+
+/* ---- The texts. The two alerts always take their space, so nothing below them jumps when they land. ---- */
+.pa-notes { display: flex; flex-direction: column; gap: calc(var(--u) * 2.4); min-height: calc(var(--u) * 52); }
+.pa-note { padding: calc(var(--u) * 3.6) calc(var(--u) * 4); background: #26282b; }
+.pa-n1, .pa-n2 { visibility: hidden; opacity: 0; transform: translate3d(0, calc(var(--u) * -3.6), 0) scale(.97); transition: opacity .35s ease, transform .6s var(--ease), visibility 0s linear .35s; }
+.pa-meta { display: flex; align-items: center; gap: calc(var(--u) * 2); color: var(--blue); font: max(9px, calc(var(--u) * 2.8)) var(--font-mono); letter-spacing: .12em; }
+.pa-mark { width: calc(var(--u) * 4.2); height: auto; flex: none; color: var(--cream); overflow: visible; }
+.pa-note p { margin: calc(var(--u) * 1.8) 0 0; font-size: max(12px, calc(var(--u) * 3.7)); line-height: 1.3; }
+.phone-alert[data-n1="1"] .pa-n1, .phone-alert[data-n2="1"] .pa-n2 { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; animation: pa-flash 1s ease-out; }
+@keyframes pa-flash { 0% { background: #3a4a57; } 100% { background: #26282b; } }
+
+/* ---- The preference thread: the question, two RCS quick replies, the visitor's answer, Phylax's confirmation ----
+   Every row sits in a grid track that animates 0fr <-> 1fr, so whatever is below it glides to its new place on the
+   site's own easing. Closed rows are visibility: hidden, so they leave the tab order and the accessibility tree. */
+.pa-thread { display: flex; flex-direction: column; }
+.pa-row { display: grid; grid-template-rows: 0fr; visibility: hidden; transition: grid-template-rows .6s var(--ease), visibility 0s linear .6s; }
+.pa-row[data-open="1"] { grid-template-rows: 1fr; visibility: visible; transition: grid-template-rows .6s var(--ease), visibility 0s; }
+.pa-clip { min-height: 0; overflow: hidden; }
+.pa-body { padding-top: calc(var(--u) * 2.4); opacity: 0; transform: translate3d(0, calc(var(--u) * -4), 0); transition: opacity .3s ease, transform .6s var(--ease); }
+.pa-row[data-open="1"] .pa-body { opacity: 1; transform: none; transition: opacity .45s ease .12s, transform .6s var(--ease) .06s; }
+.pa-row[data-open="1"] .pa-note { animation: pa-flash 1s ease-out .12s; }
+
+/* Phylax's closing line lands after the confirmation, not with it. It sits under the messaging viewport (a child of
+   .pa-screen, not of the scroller), so scrolling the thread never moves it, and the screen ends --lip above the bottom
+   fade-out, so it is always fully crisp. Equal gaps: --vgap above it (--msg-pb of that is the viewport's own padding) and
+   --vgap below it (--lip of that is the stretch between the screen's end and the start of the fade). It opens like any
+   other row, so the viewport above gives up exactly its height. */
+.pa-r-verdict, .pa-r-verdict .pa-body { transition-delay: .5s; }
+.pa-r-verdict .pa-body { padding: calc(var(--vgap) - var(--msg-pb)) 0 calc(var(--vgap) - var(--lip)); }
+.pa-verdict { margin: 0; color: var(--cream); font: 700 calc(var(--u) * 5.4) / 1 var(--font-display); letter-spacing: -.03em; }
+
+/* The visitor's side of the thread: the chosen chip becomes the bubble, in the same slot. */
+.pa-act { display: grid; }
+.pa-chips, .pa-out { grid-area: 1 / 1; transition: opacity .3s ease, transform .5s var(--ease), visibility 0s; }
+.pa-chips { display: flex; gap: calc(var(--u) * 2); }
+.pa-chips[data-live="0"] { visibility: hidden; opacity: 0; transform: translate3d(0, calc(var(--u) * -1.5), 0); pointer-events: none; transition: opacity .25s ease, transform .5s var(--ease), visibility 0s linear .5s; }
+.pa-out { justify-self: end; align-self: center; max-width: 70%; padding: calc(var(--u) * 3) calc(var(--u) * 4); background: var(--blue); color: var(--ink); font-size: max(12px, calc(var(--u) * 3.7)); font-weight: 700; line-height: 1.3; visibility: hidden; opacity: 0; transform: translate3d(calc(var(--u) * -3), calc(var(--u) * 2), 0) scale(.96); transform-origin: 100% 50%; }
+.pa-out[data-live="1"] { visibility: visible; opacity: 1; transform: none; transition-delay: .1s; }
+
+/* Quick replies: square, ruled in the page's blue like the rest of the phone, mono like the other controls on the site. Both
+   carry equal weight: neither answer is the nudged one. The cue is a slow inset pulse (inside the box, so the closed row's
+   clip never cuts it). The solid one is the single filled control in the phone: it is the way back in. */
+.pa-chip {
+  flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--u) * 2);
+  min-height: max(38px, calc(var(--u) * 10.5)); padding: 0 calc(var(--u) * 3); border: 1px solid var(--blue); border-radius: 0;
+  background: transparent; color: var(--cream); cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  font: 700 max(9px, calc(var(--u) * 2.7)) / 1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+  transition: background-color .25s ease, color .25s ease, border-color .25s ease, transform .2s var(--ease);
+}
+.pa-chip svg { flex: none; width: calc(var(--u) * 3.2); height: auto; min-width: 9px; }
+.pa-chip:active { transform: scale(.965); }
+.pa-chip:focus-visible { outline: 2px solid var(--cream); outline-offset: -5px; }
+.pa-chip.is-cue { animation: pa-chip-cue 1.8s ease-in-out infinite; }
+@keyframes pa-chip-cue {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(122,147,168,0); background-color: rgba(122,147,168,0); }
+  50% { box-shadow: inset 0 0 0 2px rgba(122,147,168,.6); background-color: rgba(122,147,168,.14); }
+}
+.pa-chip-solid { flex: none; align-self: flex-start; padding: 0 calc(var(--u) * 4.4); background: var(--cream); border-color: var(--cream); color: var(--ink); }
+.pa-chip-solid.is-cue { animation-name: pa-chip-cue-solid; }
+@keyframes pa-chip-cue-solid {
+  0%, 100% { box-shadow: inset 0 0 0 0 rgba(17,17,18,0); }
+  50% { box-shadow: inset 0 0 0 2px rgba(17,17,18,.42); }
+}
+@media (hover: hover) {
+  .pa-chip:hover { animation: none; background: var(--cream); border-color: var(--cream); color: var(--ink); }
+  .pa-chip-solid:hover { background: var(--blue); border-color: var(--blue); }
+}
+
+/* The cue, under the quick replies: same dot and wording register as the three-tap demo's "Your turn". */
+.pa-cue { display: flex; align-items: center; gap: calc(var(--u) * 2.2); margin: 0; padding-left: 6px; color: var(--cream); font: max(8px, calc(var(--u) * 2.5)) / 1.5 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.pa-cue i { flex: none; width: max(6px, calc(var(--u) * 1.9)); aspect-ratio: 1; border-radius: 50%; background: var(--blue); animation: pa-cue-dot 1.4s ease-out infinite; }
+@keyframes pa-cue-dot { 0% { box-shadow: 0 0 0 0 rgba(122,147,168,.7); } 100% { box-shadow: 0 0 0 5px rgba(122,147,168,0); } }
+
+/* Card label, top-left like the "02" / "03" numbers on the other cards. */
+.pa-caption { position: absolute; z-index: 1; top: 24px; right: 24px; left: 24px; display: flex; align-items: center; justify-content: space-between; color: var(--cream); font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+
+/* The card is sized to the phone, not to the longest conversation (the thread scrolls, so it never needs more room):
+   64px above the phone, the dial and clock, the messaging viewport at its cap (--msg-max, 120 units), and --clear below the
+   screen. That comes to 792px once the phone is at its full 340px width (the closing line sits inside the screen, under
+   the viewport: when it opens, the viewport gives up its height). Narrower, the phone scales with the card, so the
+   card's height scales with the viewport instead of leaving a tall blank phone: three columns (over 760px) 131px + 61.5vw,
+   stacked 84px + 165.6vw, both clamped at 792px. The other two cards in the row stretch to match. */
+.journal-feature.journal-feature-phone { min-height: min(792px, calc(131px + 61.5vw)); }
+@media (max-width: 760px) {
+  .journal-feature.journal-feature-phone { min-height: min(792px, calc(84px + 165.6vw)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-chip.is-cue, .pa-cue i { animation: none; }
+}

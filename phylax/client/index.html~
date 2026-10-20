@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>Phylax — Catch shift conflicts before they cost you</title>
+    <meta name="description" content="Phylax checks every per-diem shift you log, across all your staffing apps, for time overlaps, tight travel windows and cancellation risk." />
+    <meta name="theme-color" content="#111112" />
+    <script>
+      /* Page loader gate: the ONE place that decides whether the loader plays. It runs before first paint, and it
+         also exposes itself as window.__PHYLAX_LOADER_GATE__ so client-side navigation (components/PageLoader.tsx,
+         via lib/loaderGate.ts) applies exactly the same rules. There is no list of routes anywhere: a "page" is
+         just the normalised pathname, so any route added to the router later is covered automatically.
+
+         Cooldown (document loads: typing the URL, reload, a link from elsewhere, an installed app being launched).
+           - Every page has its OWN 30-minute window, kept in localStorage under  phylax:loader[:<route>]:last
+             ("/" is phylax:loader:last and "/dashboard" is phylax:loader:dashboard:last, the names already stored in
+             visitors' browsers, so those stamps still count).
+           - The loader plays only if it has not played for THIS page in the last 30 minutes. Once 30 minutes have
+             passed it plays again on the next reload or visit, in the same tab or any other.
+           - Nothing else gates it (the old per-tab sessionStorage flag is gone: it kept a tab that was left open
+             from ever seeing the loader again, however long ago it had played).
+           - It never plays for visitors who ask for reduced motion.
+           - If storage is unavailable the cooldown cannot be enforced, so a document load skips the loader rather
+             than risk replaying it on every reload.
+
+         Page switch (client-side navigation to a different route).
+           - The loader plays EVERY time, whatever that page's cooldown says (shouldPlay(route, true)).
+           - It still stamps the target page, so the cooldown above keeps working: a reload of that page within the
+             next 30 minutes is quiet. A stamp is written only when the loader actually plays.
+
+         A stamp from the future (the clock was changed) counts as expired. Expired stamps of other pages are swept
+         whenever a new one is written, so routes with variable paths cannot pile up keys in storage. */
+      (function () {
+        var WINDOW_MS = 30 * 60 * 1000;
+        var PREFIX = "phylax:loader";
+        var root = document.documentElement;
+
+        // Same tolerance as the router (wouter): ignores case and any trailing slash.
+        function routeOf(pathname) {
+          return String(pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
+        }
+        function stampKey(route) {
+          return (route === "/" ? PREFIX : PREFIX + ":" + route.slice(1)) + ":last";
+        }
+        function isFresh(stamp, now) {
+          var age = now - (Number(stamp) || 0);
+          return age >= 0 && age < WINDOW_MS;
+        }
+        function reducedMotion() {
+          try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }
+          catch (e) { return false; }
+        }
+        function sweep(now, keep) {
+          try {
+            for (var i = localStorage.length - 1; i >= 0; i--) {
+              var k = localStorage.key(i);
+              if (k && k !== keep && k.indexOf(PREFIX + ":") === 0 && k.slice(-5) === ":last" && !isFresh(localStorage.getItem(k), now)) {
+                localStorage.removeItem(k);
+              }
+            }
+          } catch (e) { /* housekeeping only */ }
+        }
+
+        // force = false: a document load, the cooldown applies. force = true: a page switch, it does not.
+        function shouldPlay(route, force) {
+          if (reducedMotion()) return false;
+          var key = stampKey(route), now = Date.now();
+          try {
+            if (!force && isFresh(localStorage.getItem(key), now)) return false;
+            localStorage.setItem(key, String(now)); // only a real play starts the 30-minute window
+          } catch (e) {
+            return force === true; // no storage: a switch still plays (it never depends on the cooldown), a load does not
+          }
+          sweep(now, key);
+          return true;
+        }
+
+        var play = false;
+        try { play = shouldPlay(routeOf(location.pathname), false); } catch (e) { play = false; }
+        window.__PHYLAX_LOADER__ = play;
+        window.__PHYLAX_LOADER_GATE__ = { windowMs: WINDOW_MS, routeOf: routeOf, shouldPlay: shouldPlay };
+        if (play) {
+          root.classList.add("phylax-loading", "phylax-hold");
+          // Safety net: if the app never boots, never leave the page covered.
+          setTimeout(function () { root.classList.remove("phylax-loading", "phylax-hold"); }, 8000);
+        }
+      })();
+    </script>
+    <!-- Icons. All files live in client/public and are served from the site root (Vercel serves real files before the SPA rewrite,
+         so /favicon.ico etc. return the image, not index.html). The ICO also covers browsers that request /favicon.ico unprompted. -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="application-name" content="Phylax" />
+    <meta name="apple-mobile-web-app-title" content="Phylax" />
+    <!-- Marker Hand (the handwriting font): the footer's "Shifts." kicker and the handwritten heading notes both use it. Preloading it
+         means neither swaps in late and nudges the text. Fonts must be preloaded with `crossorigin`, even from the same origin,
+         or the browser fetches the file twice. Vite rewrites this href to the hashed asset URL at build time, the same URL the
+         @font-face in src/index.css resolves to, so the preload is the request the font actually uses. -->
+    <link rel="preload" href="/src/assets/fonts/marker-hand/MarkerHand-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- THIS IS THE START OF A COMMENT BLOCK, BLOCK TO BE DELETED: Google Fonts here, example:
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    THIS IS THE END OF A COMMENT BLOCK, BLOCK TO BE DELETED -->
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script
+      defer
+      src="%VITE_ANALYTICS_ENDPOINT%/umami"
+      data-website-id="%VITE_ANALYTICS_WEBSITE_ID%"></script>
+  </body>
+
+</html>

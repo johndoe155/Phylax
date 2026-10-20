@@ -1,0 +1,73 @@
+import { useLayoutEffect, useState, type RefObject } from "react";
+import { createLogoDraw } from "@/lib/pricingLogoDraw";
+
+/** The draw starts when the sketch's top edge reaches 85% of the viewport height (it is well in view). As an
+ * IntersectionObserver rootMargin: the viewport's bottom edge is pulled up by 15%. */
+const ROOT_MARGIN = "0px 0px -15% 0px";
+
+/**
+ * The Pricing logo sketch draws itself: rectangle A's four sides, then rectangle B's, then the hatching. Returns `true`
+ * once the drawing has finished (immediately with prefers-reduced-motion, or if the logo cannot be drawn), which
+ * PricingIconCycle uses to hold the rest of the sketch loop until the logo is complete.
+ *
+ * The drawing itself is lib/pricingLogoDraw.ts: `stroke-dashoffset` animated on the real paths, with each dash length
+ * measured by `getTotalLength()`. `true` is returned only when that engine reports that its last stroke has finished.
+ *
+ * It is started by an IntersectionObserver rather than a ScrollTrigger: ScrollTrigger caches its start position, and the
+ * layout above Pricing keeps changing height (checks list, Gap sequence spacer, fonts) without a refresh, so a cached
+ * start drifts and the draw would run before the logo is on screen. The observer reads live geometry.
+ *
+ * The strokes are blanked before first paint (layout effect), so a fully drawn logo never flashes before the draw.
+ */
+export function usePricingLogoDraw(rootRef: RefObject<HTMLElement | null>): boolean {
+  const [drawn, setDrawn] = useState(false);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const svg = root?.querySelector<SVGSVGElement>("svg.logo-mark");
+    if (!root || !svg) {
+      setDrawn(true);
+      return;
+    }
+
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const draw = reduced || typeof IntersectionObserver === "undefined" ? null : createLogoDraw(svg);
+    if (!draw) {
+      setDrawn(true); // nothing to animate (or it must not move): leave the logo drawn and let the loop run
+      return;
+    }
+
+    let alive = true;
+    draw.finished.then((ok) => {
+      if (alive && ok) setDrawn(true);
+    });
+
+    let started = false;
+    // Fires straight away with the current state (so a reload part-way down the page works), then on every change.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (started) return;
+        const entry = entries[entries.length - 1];
+        if (entry.isIntersecting) {
+          started = true;
+          observer.disconnect();
+          draw.play();
+        } else if (entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? 0)) {
+          started = true;
+          observer.disconnect(); // scrolled straight past it (menu link / fast fling): show it finished
+          draw.finish();
+        }
+      },
+      { rootMargin: ROOT_MARGIN, threshold: 0 },
+    );
+    observer.observe(root);
+
+    return () => {
+      alive = false;
+      observer.disconnect();
+      draw.cancel();
+    };
+  }, [rootRef]);
+
+  return drawn;
+}

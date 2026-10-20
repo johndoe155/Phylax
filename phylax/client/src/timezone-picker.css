@@ -1,0 +1,107 @@
+/* Timezone picker (components/account/TimezonePicker.tsx). Account-page language: the 60px field with its resting label, ink and
+   cream, the slate --blue as the only accent, square corners, 1px hairlines, DM Mono for small print, and the page's two curves.
+   The trigger lives inside .ac and inherits its tokens; the panel is portalled to <body>, so it declares its own. Placement,
+   focus and Escape come from picker/Popover.tsx; only the look is here. Motion is transform and opacity only. */
+
+/* ---- Trigger ---------------------------------------------------------------------------------------------------------- */
+.tzp-field[data-open] { border-color: var(--cream); box-shadow: inset 0 0 0 1px var(--cream), 0 0 0 4px var(--ac-ring); transition-duration: 0s; }
+.tzp-trigger { display: flex; align-items: flex-end; gap: 14px; width: 100%; height: 100%; margin: 0; padding: 0 12px 7px 16px; border: 0; border-radius: inherit; outline: 0; background: transparent; color: var(--cream); text-align: left; cursor: pointer; }
+.tzp-value { display: flex; flex: 1; align-items: baseline; gap: 10px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.tzp-trigger .tzp-city { flex: none; max-width: 100%; overflow: hidden; font: 600 16px/24px var(--font-body); letter-spacing: -.01em; text-overflow: ellipsis; }
+.tzp-trigger .tzp-place { min-width: 0; overflow: hidden; color: var(--ac-quiet); font: 500 13px/24px var(--font-body); letter-spacing: -.005em; text-overflow: ellipsis; }
+.tzp-clock { flex: none; font: 500 15px/24px var(--font-mono); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.tzp-trigger .tzp-chevron { flex: none; margin: 0 0 3px; transition: transform .3s var(--ac-out); }
+.tzp-field:focus-within .tzp-chevron { transform: translateY(2px); }
+.tzp-field[data-open] .tzp-chevron { transform: rotate(180deg); }
+.tzp-tags { position: absolute; top: 9px; right: 16px; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+.tzp-offset { color: var(--ac-quiet); font: 500 10px/1 var(--font-mono); letter-spacing: .1em; font-variant-numeric: tabular-nums; }
+.tzp-current { display: inline-flex; align-items: center; padding: 3px 6px 2px; color: var(--ink); background: var(--blue); font: 500 9px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.tzp-tick { display: inline-block; animation: tzp-tick .45s var(--ac-out, cubic-bezier(.16,1,.3,1)) backwards; }
+@keyframes tzp-tick { from { opacity: 0; transform: translateY(5px); } }
+@media (max-width: 760px) { .tzp-trigger .tzp-place { display: none; } }
+
+/* ---- Panel ------------------------------------------------------------------------------------------------------------ */
+.tzp-pop, .tzp-scrim { --tzp-out: cubic-bezier(.16,1,.3,1); --tzp-in: cubic-bezier(.7,0,.84,0); --tzp-surface: #18191b; --tzp-hover: #262c31; --tzp-quiet: rgba(245,241,234,.62); --tzp-edge: rgba(245,241,234,.42); }
+.tzp-scrim { position: fixed; inset: 0; z-index: 80; }
+.tzp-scrim.is-leaving { pointer-events: none; }
+.tzp-pop { --tzp-dy: -8px; position: fixed; z-index: 81; left: var(--pk-x, 12px); top: var(--pk-y, 12px); display: flex; flex-direction: column; width: clamp(340px, var(--pk-aw, 460px), 540px); max-width: calc(100vw - 24px); height: min(468px, calc(100svh - 24px)); overflow: hidden; color: var(--cream); background: var(--tzp-surface); border: 1px solid var(--line-dark); box-shadow: 0 24px 60px rgba(0,0,0,.45); transform-origin: var(--pk-ox, 24px) 0; animation: tzp-in .4s var(--tzp-out) backwards; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+.tzp-pop[data-side="top"] { --tzp-dy: 8px; transform-origin: var(--pk-ox, 24px) 100%; }
+.tzp-pop.is-leaving { pointer-events: none; animation: tzp-out .18s var(--tzp-in) forwards; }
+.tzp-pop :focus-visible { outline: 1px solid var(--cream); outline-offset: -4px; }
+@keyframes tzp-in { from { opacity: 0; transform: translateY(var(--tzp-dy)) scale(.985); } }
+@keyframes tzp-out { to { opacity: 0; transform: translateY(calc(var(--tzp-dy) / 2)); } }
+@keyframes tzp-fade { from { opacity: 0; } }
+@keyframes tzp-fade-out { to { opacity: 0; } }
+@keyframes tzp-sheet-in { from { transform: translateY(100%); } }
+@keyframes tzp-sheet-out { to { transform: translateY(100%); } }
+
+.tzp-panel { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.tzp-sheet-head { display: none; }
+
+/* Search: one fixed-height row, hairline under it. */
+.tzp-search { position: relative; display: flex; flex: none; align-items: center; gap: 12px; height: 58px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--line-dark); color: var(--tzp-quiet); transition: color .2s ease, box-shadow .25s var(--tzp-out); }
+.tzp-search:focus-within { color: var(--cream); box-shadow: inset 0 -1px 0 var(--cream); }
+.tzp-search svg { flex: none; }
+.tzp-input { flex: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; outline: 0; background: transparent; color: var(--cream); caret-color: var(--blue); font: 600 16px/24px var(--font-body); letter-spacing: -.01em; -webkit-appearance: none; appearance: none; color-scheme: dark; }
+.tzp-input::placeholder { color: rgba(245,241,234,.4); font-weight: 500; }
+.tzp-input:focus-visible { outline: 0; }
+.tzp-clear, .tzp-x { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line-dark); border-radius: 50%; color: var(--cream); transition: background .2s ease, color .2s ease, border-color .2s ease, transform .2s var(--tzp-out); animation: tzp-fade .25s ease backwards; cursor: pointer; }
+.tzp-clear { margin-left: auto; }
+.tzp-clear:active, .tzp-x:active { transform: scale(.92); }
+@media (hover: hover) { .tzp-clear:hover, .tzp-x:hover { color: var(--ink); background: var(--cream); border-color: var(--cream); } }
+
+/* List: fixed height, so filtering never moves the panel. Rows off screen are skipped by the browser until they scroll in. */
+.tzp-list { position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scroll-padding: 38px 0; scrollbar-width: thin; scrollbar-color: rgba(245,241,234,.28) transparent; }
+.tzp-list[data-empty] { overflow: hidden; }
+.tzp-head { position: sticky; top: 0; z-index: 1; height: 38px; display: flex; align-items: center; padding: 0 16px; color: var(--tzp-quiet); background: var(--tzp-surface); border-bottom: 1px solid var(--line-dark); font: 9px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.tzp-group + .tzp-group .tzp-head { border-top: 1px solid var(--line-dark); }
+.tzp-opt { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 60px; padding: 10px 16px; border-top: 1px solid var(--line-dark); cursor: pointer; content-visibility: auto; contain-intrinsic-size: auto 60px; transition: background .2s ease, box-shadow .25s var(--tzp-out), color .2s ease; }
+.tzp-head + .tzp-opt { border-top: 0; }
+.tzp-opt[data-active] { background: var(--tzp-hover); box-shadow: inset 2px 0 0 var(--blue); }
+.tzp-opt[data-selected] { color: var(--ink); background: var(--blue); }
+.tzp-opt[data-selected][data-active] { box-shadow: inset 2px 0 0 var(--ink); background: #8aa1b4; }
+.tzp-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.tzp-opt .tzp-city { overflow: hidden; font: 700 15px/1.15 var(--font-body); letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
+.tzp-sub { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--tzp-quiet); font: 9px/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.tzp-opt .tzp-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tzp-abbr { flex: none; color: var(--blue); }
+.tzp-opt[data-selected] .tzp-sub { color: rgba(17,17,18,.72); }
+.tzp-opt[data-selected] .tzp-abbr { color: var(--ink); }
+.tzp-opt[data-selected] .tzp-current { color: var(--blue); background: var(--ink); }
+.tzp-sub .tzp-current { flex: none; padding: 3px 5px 2px; font-size: 8px; }
+.tzp-pop mark { color: var(--blue); background: none; }
+.tzp-opt[data-selected] mark { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.tzp-side { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.tzp-time { display: inline-flex; align-items: baseline; gap: 6px; font: 500 15px/1.15 var(--font-mono); letter-spacing: .02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tzp-day { color: var(--blue); font: 500 9px/1 var(--font-mono); letter-spacing: .1em; }
+.tzp-opt[data-selected] .tzp-day { color: var(--ink); }
+.tzp-off { color: var(--tzp-quiet); font: 9px/1.2 var(--font-mono); letter-spacing: .1em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tzp-opt[data-selected] .tzp-off { color: rgba(17,17,18,.72); }
+
+/* Empty: dashed, like the page's other empty states, with the one way out. */
+.tzp-empty { display: grid; justify-items: start; gap: 8px; margin: 16px; padding: 22px 18px; border: 1px dashed var(--tzp-edge); animation: tzp-fade .35s var(--tzp-out) backwards; }
+.tzp-empty-title { margin: 0; font: 700 15px/1.25 var(--font-body); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.tzp-empty-copy { max-width: 36ch; margin: 0 0 8px; color: var(--tzp-quiet); font: 500 13.5px/1.35 var(--font-body); }
+.tzp-link { min-height: 40px; padding: 0 2px; border: 0; border-bottom: 1px solid currentColor; background: none; color: var(--cream); font: 500 10px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; transition: color .2s ease; }
+@media (hover: hover) { .tzp-link:hover { color: var(--blue); } }
+@media (pointer: coarse) { .tzp-link { min-height: 44px; } }
+
+/* ---- Phones: a sheet from the bottom edge, above the keyboard, page dimmed behind. -------------------------------------- */
+@media (max-width: 640px) {
+  .tzp-scrim { background: rgba(17,17,18,.66); animation: tzp-fade .3s ease backwards; touch-action: none; }
+  .tzp-pop.tzp-pop { left: 0; right: 0; top: auto; bottom: var(--tzp-kb, 0px); width: auto; max-width: none; height: min(640px, calc(var(--tzp-vh, 100svh) * .88)); border-width: 1px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -24px 60px rgba(0,0,0,.45); animation: tzp-sheet-in .5s var(--tzp-out) backwards; }
+  .tzp-pop.tzp-pop.is-leaving { animation: tzp-sheet-out .25s var(--tzp-in) forwards; }
+  .tzp-sheet-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 12px 4px 16px; }
+  .tzp-sheet-title { font: 800 26px/1 var(--font-display); letter-spacing: -.07em; text-transform: uppercase; }
+  .tzp-x { width: 40px; height: 40px; }
+  .tzp-search { height: 56px; margin-top: 8px; border-top: 1px solid var(--line-dark); }
+  .tzp-input { font-size: 16px; } /* 16px: iOS zooms the page on focus below it */
+  .tzp-opt { min-height: 64px; contain-intrinsic-size: auto 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tzp-pop, .tzp-scrim, .tzp-pop[data-side="top"] { animation: tzp-fade .15s ease backwards; }
+  .tzp-pop.is-leaving, .tzp-pop.tzp-pop.is-leaving { animation: tzp-fade-out .15s ease forwards; }
+  .tzp-tick, .tzp-empty, .tzp-clear, .tzp-x { animation: none; }
+  .tzp-trigger .tzp-chevron, .tzp-opt, .tzp-search { transition: none; }
+}

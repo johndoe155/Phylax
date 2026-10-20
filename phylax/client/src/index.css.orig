@@ -1,0 +1,725 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+:root {
+  --blue: #7A93A8;
+  --blue-deep: #506b80;
+  /* Overlap fill: where two shifts cross (see the gap sequence). */
+  --overlap: var(--blue-deep);
+  --ink: #111112;
+  --cream: #F5F1EA;
+  --cream-muted: #d9d4ca;
+  --line-dark: rgba(245,241,234,.2);
+  --line-light: rgba(17,17,18,.18);
+  --font-body: "Manrope", Arial, sans-serif;
+  --font-display: "Syne", Arial, sans-serif;
+  --font-mono: "DM Mono", monospace;
+  --ease: cubic-bezier(.65,.05,0,1);
+  --duration: .75s;
+  --wash: 17,17,18;
+}
+
+@theme inline {
+  --color-background: var(--ink);
+  --color-foreground: var(--cream);
+  --color-primary: var(--blue);
+  --color-primary-foreground: var(--ink);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; background: var(--ink); }
+body { margin: 0; background: var(--ink); color: var(--cream); font-family: var(--font-body); font-size: 14px; line-height: 1.35; font-weight: 500; }
+button, a { color: inherit; font: inherit; }
+button { border: 0; background: none; padding: 0; cursor: pointer; }
+a { text-decoration: none; }
+img { display: block; width: 100%; }
+::selection { background: var(--blue); color: var(--ink); }
+
+.site-shell { position: relative; overflow: clip; background: var(--ink); }
+.grain { position: fixed; inset: 0; z-index: 20; pointer-events: none; opacity: .055; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E"); mix-blend-mode: screen; }
+.scroll-progress { position: fixed; left: 0; top: 0; z-index: 60; width: 100%; height: 3px; background: var(--blue); transform-origin: left; }
+
+.global-nav { position: fixed; left: 0; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 76px; padding: 0 34px; color: var(--cream); mix-blend-mode: difference; transition: color .3s ease; }
+.brand-lockup, .nav-actions, .nav-store { display: flex; align-items: center; }
+.brand-lockup { gap: 12px; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 800; }
+.brand-name { padding-top: 2px; }
+/* Inline SVG (components/PhylaxMark.tsx; the page loader draws this same geometry). 24x20 footprint, 2px outline, currentColor. */
+.logo-mark { display: inline-block; width: 24px; height: 20px; flex: none; overflow: visible; }
+.nav-center { position: absolute; left: 50%; transform: translateX(-50%); color: currentColor; font: 10px var(--font-mono); text-transform: uppercase; letter-spacing: .13em; opacity: .8; }
+.nav-actions { gap: 18px; }
+.nav-store { gap: 6px; text-transform: uppercase; font-size: 10px; letter-spacing: .14em; }
+.nav-store svg, .text-link svg, .mini-link svg { transition: transform .25s var(--ease); }
+.nav-store:hover svg, .text-link:hover svg, .mini-link:hover svg, .social-links a:hover svg { transform: translate(3px,-3px); }
+.menu-trigger { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid currentColor; border-radius: 50%; transition: background .2s ease, color .2s ease; }
+@media (hover: hover) { .menu-trigger:hover { color: var(--ink); background: var(--cream); } }
+.menu-trigger:active { color: var(--ink); background: var(--cream); }
+/* Touch screens: at least a 44px tap target. */
+@media (pointer: coarse) { .menu-trigger { width: 44px; height: 44px; } }
+.menu-trigger svg { grid-area: 1 / 1; transition: transform .7s var(--ease), opacity .3s ease; }
+/* ---- Menu trigger (components/MenuTrigger.tsx) ---------------------------------------------------
+   Lives outside the mix-blend-mode header: its glyph is inverted in JS and its disc is a *different* tone of the
+   backdrop, which a blended parent would mangle. The header keeps an empty slot so the layout doesn't move. */
+:root { --nav-h: 76px; --nav-pad: 34px; --mt-size: 36px; }
+@media (pointer: coarse) { :root { --mt-size: 44px; } }
+.nav-trigger-slot { flex: none; width: var(--mt-size); height: var(--mt-size); }
+.morph-trigger {
+  position: fixed; z-index: 52; top: calc((var(--nav-h) - var(--mt-size)) / 2); right: var(--nav-pad);
+  display: block; width: var(--mt-size); height: var(--mt-size); padding: 0; border: 0; border-radius: 50%; background: none;
+  color: var(--cream); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: color .35s ease;
+}
+.morph-trigger svg { display: block; width: 100%; height: 100%; overflow: visible; transition: transform .22s var(--ease); }
+.morph-trigger:active svg { transform: scale(.92); }
+.morph-trigger:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.mt-ring { fill: none; stroke: currentColor; stroke-width: 1.1; transition: stroke-width .25s ease; }
+@media (hover: hover) { .morph-trigger:hover .mt-ring { stroke-width: 1.9; } }
+.mt-fill { fill: var(--mt-fill, transparent); transition: fill .35s ease; }
+/* The third colour (the inverse of the site's blue): the first thing to fill the button, then a brief outline while it lifts away. */
+.mt-cover { fill: var(--mt-accent, transparent); transition: fill .35s ease; }
+.mt-ring-open { fill: none; stroke: var(--mt-accent, transparent); stroke-width: 1.4; pointer-events: none; transition: stroke .35s ease; }
+.mt-glyph path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+/* The glyph's colour while it is over the third colour (differs from currentColor only where those two would be the same). */
+.mt-glyph-alt path { stroke: var(--mt-on-accent, currentColor); }
+.menu-curtain, .menu-panel { position: fixed; inset: 0; visibility: hidden; pointer-events: none; clip-path: inset(0 0 100% 0 round 0 0 32px 32px); }
+.menu-curtain { z-index: 44; background: var(--blue); opacity: 1; transition: clip-path .6s var(--ease) .02s, visibility 0s linear .7s; }
+.menu-panel { z-index: 45; --out: cubic-bezier(.16,1,.3,1); --in: cubic-bezier(.7,0,.84,0); overflow-y: auto; display: flex; flex-direction: column; justify-content: space-between; gap: 28px; overscroll-behavior: contain; padding: 128px 7vw 34px; color: var(--cream); background: rgba(17,17,18,.96); transition: clip-path .6s var(--ease), visibility 0s linear .7s; }
+/* Open: the blue sheet drops first, the dark panel follows a beat behind so a slim blue edge leads it down. Corners square off on arrival. */
+.menu-curtain[data-state="open"], .menu-panel[data-state="open"] { visibility: visible; clip-path: inset(0 0 0 0 round 0 0 0 0); }
+.menu-panel[data-state="open"] { pointer-events: auto; transition: clip-path .85s var(--ease) .02s, visibility 0s; }
+.menu-curtain[data-state="open"] { opacity: 0; transition: clip-path .85s var(--ease), opacity .3s ease .95s, visibility 0s; }
+.menu-panel-top, .menu-foot { display: flex; justify-content: space-between; color: var(--cream-muted); font: 10px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; }
+.menu-links { position: relative; display: grid; }
+.menu-links::before, .menu-links button::after { content: ""; position: absolute; left: 0; right: 0; height: 1px; background: var(--line-dark); transform: scaleX(0); transform-origin: left; transition: transform .35s ease; }
+.menu-links::before { top: 0; }
+.menu-links button::after { bottom: 0; }
+.menu-links button { position: relative; display: grid; grid-template-columns: 70px 1fr 30px; align-items: center; padding: 22px 0 20px; text-align: left; text-transform: uppercase; font: 700 clamp(2.6rem,6vw,6.5rem)/.86 var(--font-display); letter-spacing: -.07em; transition: color .2s ease, padding-left .3s var(--ease); }
+@media (hover: hover) { .menu-links button:hover { color: var(--blue); padding-left: 18px; } }
+.menu-links button:active, .menu-links button[aria-current] { color: var(--blue); }
+.menu-here { justify-self: end; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; background: currentColor; }
+.menu-foot { flex-direction: column; align-items: stretch; gap: 16px; }
+.menu-cta { font-family: var(--font-body); width: 100%; display: flex; align-items: center; justify-content: space-between; min-height: 56px; padding: 0 24px; border-radius: 999px; background: var(--cream); color: var(--ink); text-transform: uppercase; font-size: 12px; font-weight: 800; letter-spacing: .14em; transition: background .25s ease; }
+.menu-cta svg { transition: transform .25s var(--ease); }
+@media (hover: hover) { .menu-cta:hover { background: var(--blue); } .menu-cta:hover svg { transform: translate(3px,-3px); } }
+.menu-cta:active { background: var(--blue); }
+.menu-mail { padding: 8px 0; text-align: center; }
+.menu-index { align-self: start; padding-top: 8px; font: 11px var(--font-mono); letter-spacing: .1em; }
+
+/* ---- Menu choreography ---------------------------------------------------------------------------
+   Closed rules below are the OUTRO (quick, near-simultaneous, last link first); [data-state="open"] rules
+   are the INTRO (slower, staggered, after the curtain is already moving). Transitions, not keyframes, so
+   toggling mid-flight reverses smoothly from wherever the animation is. */
+.menu-links button { --d: calc(.42s + var(--i) * .07s); }
+/* Link labels rise out of a mask. */
+.menu-label { display: block; overflow: hidden; padding: .12em .1em .12em .04em; margin: -.12em -.1em -.12em -.04em; }
+.menu-label > span { display: block; transform: translateY(112%); transition: transform .45s var(--in) calc((var(--n) - 1 - var(--i)) * .03s); }
+/* Small furniture fades up. */
+.menu-panel .mx { opacity: 0; transform: translateY(12px); transition: opacity .25s ease, transform .4s var(--in); }
+.menu-panel-top .mx { --d: .46s; }
+.menu-panel-top .mx + .mx { --d: .53s; }
+.menu-foot > :first-child { --d: calc(.42s + var(--n) * .07s + .06s); }
+.menu-foot > :last-child { --d: calc(.42s + var(--n) * .07s + .14s); }
+
+.menu-panel[data-state="open"] .menu-links::before, .menu-panel[data-state="open"] .menu-links button::after { transform: scaleX(1); transition: transform 1s var(--ease) calc(.36s + var(--i, 0) * .07s); }
+.menu-panel[data-state="open"] .menu-links::before { transition-delay: .34s; }
+.menu-panel[data-state="open"] .menu-label > span { transform: none; transition: transform 1.05s var(--out) calc(.42s + var(--i) * .07s); }
+.menu-panel[data-state="open"] .mx { opacity: 1; transform: none; transition: opacity .7s ease var(--d, 0s), transform 1s var(--out) var(--d, 0s); }
+
+/* Reduced motion: no travel, no stagger. Just a short cross-fade. */
+@media (prefers-reduced-motion: reduce) {
+  .menu-curtain { display: none; }
+  .morph-trigger svg { transition: none; }
+  .menu-panel { clip-path: none; opacity: 0; transition: opacity .25s ease, visibility 0s linear .25s !important; }
+  .menu-panel[data-state="open"] { opacity: 1; transition: opacity .25s ease, visibility 0s !important; }
+  .menu-panel .mx, .menu-panel[data-state="open"] .mx, .menu-label > span, .menu-panel[data-state="open"] .menu-label > span { opacity: 1; transform: none; transition: none !important; }
+  .menu-links::before, .menu-links button::after, .menu-panel[data-state="open"] .menu-links::before, .menu-panel[data-state="open"] .menu-links button::after { transform: none; transition: none !important; }
+  .menu-trigger svg { transition: opacity .2s ease !important; }
+}
+
+.hero-section { position: relative; min-height: 100svh; height: max(760px, 100svh); isolation: isolate; overflow: hidden; background: var(--ink); }
+.hero-backdrop { position: absolute; inset: 0; z-index: -3; filter: saturate(.7) contrast(1.06); transform: scale(1.04); animation: hero-drift 18s ease-in-out infinite alternate; }
+@keyframes hero-drift { from { transform: scale(1.04); } to { transform: scale(1.1) translateX(-1%); } }
+.hero-wash { position: absolute; inset: 0; z-index: -2; background: linear-gradient(90deg, rgba(var(--wash),.88) 0%, rgba(var(--wash),.45) 43%, rgba(var(--wash),.12) 100%), linear-gradient(0deg, rgba(var(--wash),.55), transparent 40%); }
+.hero-content { display: flex; flex-direction: column; justify-content: space-between; min-height: 100%; padding: 18vh 6.7vw 7vh; }
+/* Brand block: logo + wordmark, top centre of the hero. Positioned relative to .hero-section (and to .hero-inverse in the
+   blob twin, which is the same size), centred with flex so no transform competes with the .reveal on the wordmark. */
+.hero-brand { position: absolute; z-index: 1; left: 0; right: 0; top: max(108px, 17svh); display: flex; flex-direction: column; align-items: center; gap: clamp(16px, 2.4vh, 26px); pointer-events: none; }
+.hero-logo { display: block; width: clamp(60px, 6.4vw, 104px); height: auto; aspect-ratio: 24 / 20; overflow: visible; }
+/* Same stroke as the loader logo and the nav mark (2 / 24 of the box), so the loader's logo can land on it exactly. */
+.hero-logo-bar { fill: none; stroke: var(--cream); stroke-width: 2; stroke-linecap: square; stroke-linejoin: miter; }
+/* --rule (1 -> 0) is driven by useHeroLogoUndraw: the two rules shrink inwards, toward the word, until they vanish. */
+.hero-wordmark { --rule: 1; display: flex; align-items: center; gap: clamp(12px, 1.4vw, 20px); margin: 0; color: var(--cream); font: 800 clamp(13px, 1.45vw, 20px)/1 var(--font-display); letter-spacing: .5em; text-transform: uppercase; white-space: nowrap; }
+.hero-wordmark::before, .hero-wordmark::after { content: ""; width: clamp(22px, 3.2vw, 48px); height: 1px; background: currentColor; opacity: .38; transform: scaleX(var(--rule)); }
+/* Transform, not width: the layout (and so the word's centring) never changes while they collapse. */
+.hero-wordmark::before { transform-origin: 100% 50%; } /* its right end touches the word */
+.hero-wordmark::after { transform-origin: 0 50%; }     /* its left end touches the word */
+.hero-wordmark span { margin-right: -.5em; } /* cancels the trailing letter-space so the word sits optically centred between the rules */
+.hero-title { margin: auto 0 2.6rem; color: var(--cream); font: 800 clamp(6.2rem, 16.2vw, 16rem)/.77 var(--font-display); letter-spacing: -.105em; text-transform: uppercase; }
+.hero-title em { margin-left: 9vw; color: var(--blue); font-style: normal; }
+.hero-footer { display: flex; align-items: end; justify-content: space-between; max-width: 590px; }
+.hero-footer p { max-width: 270px; margin: 0; color: var(--cream); font-size: 15px; line-height: 1.25; letter-spacing: -.025em; }
+.accent-word { color: var(--blue); }
+/* Round arrow buttons (hero + footer). Two layers move independently, both on transform only (compositor-friendly):
+   the button itself is the container that dips / lifts on click, and its svg is the arrow that rotates.
+   Click state comes from data-active (Home.tsx, useTimedActive), which holds while the page scrolls. */
+.round-arrow { display: grid; place-items: center; width: 62px; height: 62px; border: 1px solid var(--cream); border-radius: 50%; transition: color .25s ease, background .25s ease, transform .45s var(--ease); }
+.round-arrow:hover { color: var(--ink); background: var(--cream); }
+.round-arrow svg { display: block; transition: transform .45s var(--ease); }
+/* Hero: the arrow (down-right by default) turns to face straight down, and the whole button dips. The hover tilt that
+   used to rotate the entire button now rotates just the arrow, so it can't fight the container's dip. */
+.hero-footer .round-arrow:hover svg, .hero-footer .round-arrow[data-active="true"] svg { transform: rotate(45deg); }
+.hero-footer .round-arrow[data-active="true"] { transform: translateY(3px); }
+.hero-vertical-label { position: absolute; right: 34px; top: 45%; display: flex; align-items: center; gap: 13px; writing-mode: vertical-rl; transform: rotate(180deg); color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .14em; }
+.vertical-line { display: block; width: 1px; height: 54px; margin: 9px 0; background: currentColor; opacity: .5; }
+.hero-signal { position: absolute; left: 6.7vw; bottom: 24px; display: flex; align-items: center; gap: 8px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; }
+.signal-dot, .eyebrow-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+
+/* Hero background bars (inline SVG; colors follow the theme variables so the inverted twin just works) */
+.hero-bars { display: block; width: 100%; height: 100%; }
+.hb-bg { fill: var(--hero-bg, #151618); }
+.hb-grid { stroke: var(--cream); stroke-opacity: .07; }
+.hb-bar { fill: var(--cream); animation: bar-slide var(--t, 16s) ease-in-out infinite alternate; animation-delay: var(--o, 0s); }
+.hb-accent { fill: var(--blue); fill-opacity: .8; }
+.hb-clash { fill: none; stroke: var(--cream); stroke-opacity: .7; stroke-dasharray: 6 6; animation: clash-march 1.4s linear infinite; }
+@keyframes bar-slide { from { transform: translateX(calc(var(--d, 60px) * -1)); } to { transform: translateX(var(--d, 60px)); } }
+@keyframes clash-march { to { stroke-dashoffset: -12; } }
+
+/* Touch/hover blob: an inverted copy of the hero, clipped to the blob by useBlobReveal.
+   Swapping --ink/--cream (and using the deeper blue for contrast) inverts everything that reads the palette. */
+.hero-section { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.hero-inverse {
+  --ink: #F5F1EA; --cream: #111112; --cream-muted: #4b4b4e; --blue: #506b80;
+  --wash: 245,241,234; --hero-bg: #F5F1EA;
+  position: absolute; inset: 0; z-index: 2; isolation: isolate; overflow: hidden; pointer-events: none;
+  background: var(--ink); color: var(--cream);
+  clip-path: circle(0px); visibility: hidden;
+}
+.hero-inverse .hb-accent { fill-opacity: .85; }
+
+.marquee-section { display: flex; flex-direction: column; justify-content: center; min-height: 36vh; padding: 7vh 0; overflow: hidden; background: var(--blue); color: var(--ink); }
+.marquee-row { display: flex; gap: 1em; padding-right: 1em; width: max-content; white-space: nowrap; animation: marquee 26s linear infinite; font: 800 clamp(3.2rem, 7.6vw, 9rem)/.84 var(--font-display); letter-spacing: -.085em; text-transform: uppercase; }
+.marquee-row-reverse { margin-top: 1.2rem; animation-direction: reverse; animation-duration: 31s; }
+.marquee-accent { color: var(--cream); }
+.marquee-outline { color: transparent; -webkit-text-stroke: 1px var(--ink); }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+.dark-section { background: var(--ink); color: var(--cream); }
+.cream-section { background: var(--cream); color: var(--ink); }
+.section-eyebrow { display: flex; align-items: center; gap: 10px; color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; }
+.section-eyebrow-light { color: rgba(17,17,18,.56); }
+.story-section { padding: 14vh 6.7vw 15vh; }
+.story-intro { max-width: 1150px; margin: 0 auto; }
+.story-intro-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 8vw; align-items: end; margin-top: 16vh; }
+.display-heading { margin: 0; font: 800 clamp(5rem, 12vw, 12rem)/.76 var(--font-display); letter-spacing: -.1em; text-transform: uppercase; }
+.story-copy { max-width: 300px; margin-bottom: 1rem; color: var(--cream-muted); font-size: 17px; line-height: 1.18; }
+.story-copy p { margin: 0; }
+.signature { display: block; margin-top: 30px; color: var(--blue); font: 800 46px var(--font-display); letter-spacing: -.14em; transform: rotate(-8deg); }
+.story-images { display: flex; align-items: start; gap: 2.2vw; margin-top: 17vh; overflow: visible; }
+.story-card { flex: 0 0 auto; margin: 0; }
+.story-card-large { width: 36vw; }
+.story-card-tall { width: 21vw; margin-top: 11vw; }
+.story-card-medium { width: 24.5vw; margin-top: 4vw; }
+.story-card .visual { transition: border-color .6s ease; }
+.story-card-large .visual { min-height: min(30vw, 440px); justify-content: space-between; }
+.story-card-tall .visual { min-height: min(31vw, 460px); justify-content: space-between; }
+.story-card-medium .visual { min-height: min(32vw, 480px); justify-content: space-between; }
+.story-card:hover .visual { border-color: var(--blue); }
+.story-card figcaption { display: flex; justify-content: space-between; margin-top: 12px; color: var(--cream-muted); font: 9px var(--font-mono); text-transform: uppercase; letter-spacing: .12em; }
+.story-caption { margin: 18vh 0 0 auto; max-width: 620px; color: var(--cream); font: 600 clamp(2rem, 4vw, 4rem)/.94 var(--font-display); letter-spacing: -.07em; }
+
+.image-note { position: absolute; right: 30px; bottom: 28px; color: var(--cream); font: 9px var(--font-mono); letter-spacing: .15em; writing-mode: vertical-rl; }
+.dark-heading { color: var(--ink); }
+.dark-heading span { color: var(--blue-deep); }
+.large-copy { max-width: 330px; margin: 8vh 0 3vh; font-size: clamp(1.2rem, 1.9vw, 2rem); line-height: 1.06; letter-spacing: -.045em; }
+.text-link, .mini-link { display: inline-flex; align-items: center; gap: 7px; width: fit-content; padding-bottom: 8px; border-bottom: 1px solid currentColor; text-transform: uppercase; font: 10px var(--font-mono); letter-spacing: .12em; }
+
+.calendar-section { position: relative; z-index: 1; padding: 13vh 6.7vw 15vh; } /* z-index: the warp below paints over the section that follows */
+.calendar-head { max-width: 1150px; margin: 0 auto 13vh; }
+.calendar-title-row { display: flex; align-items: end; justify-content: space-between; margin-top: 15vh; }
+.calendar-meta { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .12em; text-align: right; }
+.calendar-meta span:last-child { color: var(--blue); font-size: 28px; letter-spacing: -.05em; }
+.calendar-list { max-width: 1150px; margin: 0 auto; border-top: 1px solid var(--line-dark); }
+.calendar-item { border-bottom: 1px solid var(--line-dark); }
+.calendar-row { display: grid; grid-template-columns: 9% 20% 1fr 12% 24px; align-items: center; gap: 1rem; width: 100%; padding: 24px 0; text-align: left; transition: color .2s ease, padding .35s var(--ease); }
+.calendar-row:hover { padding-left: 16px; color: var(--blue); }
+.race-number, .race-date, .race-time { color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .1em; }
+.race-place { display: flex; flex-direction: column; gap: 4px; color: var(--cream); text-transform: uppercase; font: 600 22px var(--font-display); letter-spacing: -.06em; }
+.race-place small { color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .09em; }
+.race-time { color: var(--blue); }
+.calendar-row svg { transition: transform .35s var(--ease); }
+.calendar-item[data-open="true"] .calendar-row svg { transform: rotate(180deg); }
+.calendar-detail { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s var(--ease); }
+.calendar-item[data-open="true"] .calendar-detail { grid-template-rows: 1fr; }
+.calendar-detail > div { overflow: hidden; }
+.calendar-detail p { max-width: 640px; margin: 0; padding: 4px 0 30px calc(29% + 2rem); color: var(--cream-muted); font-size: 15px; line-height: 1.3; }
+/* Bottom-edge warp (useChecksWarp.ts): an arch of the section's own colour that grows out of its bottom edge as it
+   scrolls into view. A fixed-size, out-of-flow strip (so it never changes layout) whose background the hook sets to a
+   radial gradient: a circle whose rim is the arch. A gradient is smooth per pixel on every device; a vector path or a
+   scaled bitmap shows a staircase on an edge this shallow. Depth scales with the viewport width. The 1px overlap with
+   the section hides the seam. No background (flat edge) until the hook runs. */
+.calendar-warp { --warp-depth: clamp(16px, 3.5vw, 48px); position: absolute; left: 0; right: 0; top: calc(100% - 1px); height: var(--warp-depth); pointer-events: none; }
+
+.stats-section { padding: 7vh 6.7vw 3.5vh; }
+.stats-top, .stats-foot { display: flex; justify-content: space-between; color: rgba(17,17,18,.56); font: 10px var(--font-mono); letter-spacing: .13em; text-transform: uppercase; }
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4vw; margin: 16vh 0 18vh; }
+.stat-block { display: flex; flex-direction: column; padding-top: 16px; border-top: 1px solid var(--line-light); }
+.stat-block strong { color: var(--ink); font: 800 clamp(6rem, 15vw, 15rem)/.75 var(--font-display); letter-spacing: -.12em; }
+.stat-block span { margin-top: 30px; text-transform: uppercase; font: 10px var(--font-mono); letter-spacing: .13em; }
+.stat-unit { margin-left: 10px; color: var(--blue-deep); font-size: .4em; letter-spacing: -.04em; }
+
+.journal-section { padding: 15vh 6.7vw 13vh; }
+.journal-header { position: relative; max-width: 1150px; margin: 0 auto 11vh; }
+.journal-header .display-heading { margin-top: 12vh; }
+.journal-intro { position: absolute; right: 0; bottom: 0; max-width: 200px; color: var(--cream-muted); font-size: 14px; }
+.journal-grid { display: grid; grid-template-columns: 1.2fr .8fr .8fr; gap: 18px; max-width: 1150px; margin: 0 auto; }
+.journal-feature { position: relative; min-height: 580px; margin: 0; overflow: hidden; }
+.sms { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 28px 28px 92px; background: #18191b; transition: background .6s ease; }
+.journal-feature:hover .sms { background: #1d1f22; }
+.sms-msg { max-width: 90%; padding: 16px 18px; background: #26282b; }
+.sms-msg p { margin: 8px 0 0; font-size: 15px; line-height: 1.3; }
+.sms-meta { color: var(--blue); font: 9px var(--font-mono); letter-spacing: .12em; }
+.sms-foot { margin-top: 6px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.journal-overlay { position: absolute; right: 0; bottom: 0; left: 0; display: flex; justify-content: space-between; padding: 22px; background: linear-gradient(transparent, rgba(17,17,18,.8)); color: var(--cream); font: 10px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.journal-card { display: flex; flex-direction: column; justify-content: space-between; min-height: 580px; padding: 24px; background: var(--cream); color: var(--ink); }
+.journal-card-blue { color: var(--cream); background: var(--blue); }
+.journal-card-number { font: 10px var(--font-mono); letter-spacing: .1em; }
+.journal-card h3 { margin: auto 0; font: 800 clamp(2.6rem, 4.7vw, 5.3rem)/.79 var(--font-display); letter-spacing: -.09em; text-transform: uppercase; }
+.journal-card p { max-width: 200px; margin: 0 0 24px; font-size: 14px; line-height: 1.1; }
+
+:root { --seam: clamp(140px, 22vh, 300px); }
+.helmet-section { padding: 14vh 6.7vw max(16vh, var(--seam)); } /* extra empty strip below; the Dashboard still uses it as-is */
+/* No seam between Templates and Pricing any more: one colour, no edge. The gap between them is generous (26vh under the
+   tiles + 20vh above the sketch that now opens Pricing) so the sketch reads as the start of its own section instead of
+   hanging off the last row of tiles. */
+.mx-zone > .helmet-section { padding-bottom: 26vh; }
+.mx-zone > .callout-section { padding-top: 20vh; }
+.helmet-heading { display: grid; grid-template-columns: 1fr 1fr; gap: 6vw; max-width: 1150px; margin: 0 auto 12vh; }
+.helmet-heading .section-eyebrow { grid-column: 1 / -1; }
+.helmet-heading .large-copy { margin: auto 0 0; }
+.helmet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.4vw; max-width: 1150px; margin: 0 auto; }
+.helmet-card { position: relative; }
+.helmet-visual { position: relative; overflow: hidden; aspect-ratio: 1 / 1.12; background: #e7e2d8; }
+.tile { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: 18px; color: var(--ink); transition: transform .75s var(--ease); }
+.tile-label { font: 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.tile-time { font: 800 clamp(3.6rem, 7vw, 7.5rem)/.8 var(--font-display); letter-spacing: -.1em; }
+.tile-bar { position: relative; height: 6px; background: rgba(17,17,18,.14); }
+.tile-bar span { position: absolute; top: 0; bottom: 0; background: var(--ink); }
+.helmet-overlay { position: absolute; inset: 0; background: var(--blue); mix-blend-mode: color; opacity: .25; transition: opacity .4s ease; }
+.helmet-card:hover .tile { transform: scale(1.05); }
+.helmet-card:hover .helmet-overlay { opacity: .04; }
+.helmet-info { display: flex; justify-content: space-between; padding-top: 12px; text-transform: uppercase; font: 10px var(--font-mono); letter-spacing: .11em; }
+.helmet-index { position: absolute; right: 10px; top: 10px; color: var(--cream); font: 9px var(--font-mono); mix-blend-mode: difference; }
+
+/* ---- Templates -> Pricing morph (hooks/usePricingMorph.ts) ----------------------------------------------------
+   Templates and Pricing live in one .mx-zone. The zone is cream; .mx-ink is a single ink layer over the whole zone whose
+   opacity scroll drives from 0 to 1, and both sections are transparent on top of it - so the viewport is one colour,
+   never two, and there is no edge between the sections to synchronise. Text, hairlines, accents and the tile surface read
+   --mx-* variables that the same script rewrites from the same progress value. All of this is gated on .is-morphing,
+   which the script adds only when motion is allowed: without it (no JS, reduced motion) the sections keep their own
+   static cream / ink backgrounds from .cream-section / .dark-section. */
+.mx-zone { position: relative; isolation: isolate; }
+.mx-ink { position: absolute; inset: 0; z-index: -1; background: var(--ink); opacity: 0; pointer-events: none; }
+.mx-zone:not(.is-morphing) .mx-ink { display: none; }
+.mx-zone.is-morphing { background: var(--cream); }
+.mx-zone.is-morphing > .helmet-section,
+.mx-zone.is-morphing > .callout-section { background: transparent; color: var(--mx-fg); }
+
+/* Templates reads the palette through --ink (its text colour), so everything already written in terms of it follows. */
+.mx-zone.is-morphing > .helmet-section { --ink: var(--mx-fg); --cream-muted: var(--mx-muted); --blue: var(--mx-accent); --blue-deep: var(--mx-accent); --line-light: var(--mx-line); }
+.mx-zone.is-morphing .section-eyebrow-light { color: var(--mx-muted); }
+/* The tiles sit on their own surface, which morphs too; their text and bar follow that surface, not the page. */
+.mx-zone.is-morphing .helmet-visual { --ink: var(--mx-surface-fg); background: var(--mx-surface); }
+.mx-zone.is-morphing .tile-bar { background: color-mix(in srgb, var(--mx-surface-fg) 14%, transparent); }
+/* Pricing reads the palette through --cream (its text colour), as it did before. */
+.mx-zone.is-morphing > .pricing-morph { --cream: var(--mx-fg); --cream-muted: var(--mx-muted); --blue: var(--mx-accent); --line-dark: var(--mx-line); }
+
+.callout-section { display: grid; grid-template-columns: 1.2fr .8fr; min-height: 80vh; padding: 14vh 6.7vw; }
+.callout-word { align-self: center; color: var(--cream); font: 800 clamp(6rem, 17vw, 18rem)/.72 var(--font-display); letter-spacing: -.14em; text-transform: uppercase; }
+.callout-word span { color: var(--blue); }
+.callout-aside { align-self: end; max-width: 210px; padding-bottom: 8px; }
+
+/* The sketch loop (components/PricingIconCycle.tsx): one icon at a time, centred across the section's full content width
+   (it spans both grid columns), directly above "START FREE.". Rows hug their content and the pair is centred as a unit,
+   so the sketch always sits right on top of the heading however tall the viewport is. */
+.callout-section:has(.pricing-cycle) { grid-template-rows: auto auto; align-content: center; }
+.pricing-cycle { grid-column: 1 / -1; justify-self: center; position: relative; width: clamp(92px, 9.5vw, 140px); aspect-ratio: 1; margin-bottom: 5vh; color: var(--cream); pointer-events: none; }
+/* Hard cut, no fade: exactly one icon is visible at any instant, so a swap reads as a snap rather than a hand-over. */
+.pricing-cycle-icon { position: absolute; inset: 0; visibility: hidden; }
+.pricing-cycle-icon[data-active="true"] { visibility: visible; }
+.pricing-cycle-icon svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.callout-aside p { margin: 7vh 0 3vh; font: 500 23px/1 var(--font-display); letter-spacing: -.07em; }
+.callout-fine { display: block; margin-top: 18px; color: var(--cream-muted); font: 9px/1.5 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.social-links { display: flex; flex-direction: column; gap: 11px; }
+.social-links a { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--line-dark); color: var(--cream); font: 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.social-links a svg { transition: transform .25s var(--ease); }
+
+/* ---- Footer ----------------------------------------------------------------------------------------------
+   The canvas runs from the Pricing section's ink down to the brand blue. The cream panel (components/FooterShape.tsx)
+   floats on it with a tab on its top and bottom edges; the back-to-top button sits outside, above its top-right edge. */
+.site-footer { padding: clamp(40px, 7vh, 72px) clamp(14px, 3.5vw, 44px) clamp(28px, 5vw, 56px); background: linear-gradient(180deg, var(--ink) 0%, var(--blue) 100%); color: var(--ink); }
+.footer-frame { max-width: 1720px; margin: 0 auto; }
+.footer-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.site-footer .round-arrow:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+/* Back-to-top: the arrow takes the ring's own colour (it used to inherit the footer's ink, which vanished on the dark canvas).
+   At rest the arrow leans left at 45deg; on click it swings upright and the whole button lifts (not just the arrow). */
+.footer-bar .round-arrow { --ring: var(--cream); border-color: var(--ring); color: var(--ring); }
+.footer-bar .round-arrow svg { transform: rotate(-45deg); }
+.footer-bar .round-arrow[data-active="true"] { transform: translateY(-3px); }
+.footer-bar .round-arrow[data-active="true"] svg { transform: rotate(0deg); }
+.footer-shape { --tab-top: 10px; --tab-bottom: 22px; position: relative; padding: var(--tab-top) 0 var(--tab-bottom); color: var(--ink); }
+.footer-shape-bg { position: absolute; left: 0; top: 0; display: block; overflow: visible; fill: var(--cream); pointer-events: none; shape-rendering: geometricPrecision; }
+/* Content box is flush with the panel so the marquee can run edge to edge; it clips to the panel's corner radius (10px, 8px when compact). */
+.footer-shape-content { position: relative; overflow: hidden; border-radius: 10px; }
+.footer-body { display: flex; flex-direction: column; align-items: center; padding: clamp(28px, 4.2vw, 52px) clamp(26px, 5.5vw, 80px) clamp(24px, 3.2vw, 40px); }
+
+/* 1. Top banner: bold caps in the same blue as the "LAX" in the wordmark, on the cream panel, infinite marquee. */
+.footer-marquee { overflow: hidden; color: var(--blue-deep); }
+.footer-marquee-track { display: flex; width: max-content; animation: marquee 50s linear infinite; }
+.footer-marquee:hover .footer-marquee-track { animation-play-state: paused; }
+.footer-marquee-group { display: flex; flex: none; align-items: center; justify-content: space-around; min-width: 100vw; padding: 16px 2.2em; font: 800 15px/1 var(--font-body); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+
+/* 2. Navigation grid: centred, quiet labels over large bold items. */
+.footer-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 0 5vw; width: 100%; max-width: 860px; margin-bottom: clamp(22px, 3.6vh, 38px); text-align: center; }
+.footer-nav > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.footer-nav > div > span:first-child { margin-bottom: 4px; color: rgba(17,17,18,.48); font: 500 10px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.footer-nav button, .footer-nav a, .footer-nav > div > span:not(:first-child) { font: 800 clamp(17px, 2.7vw, 30px)/1.15 var(--font-body); letter-spacing: -.01em; text-transform: uppercase; -webkit-text-stroke: .03em currentColor; /* Manrope tops out at 800; the hairline stroke adds the extra weight */ }
+.footer-nav button, .footer-nav a { transition: color .25s ease; }
+@media (hover: hover) { .footer-nav button:hover, .footer-nav a:hover { color: var(--blue-deep); } }
+.footer-nav button:focus-visible, .footer-nav a:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 4px; }
+
+/* 2b. Account links (Dashboard / Login): stacked, centred under the Explore column. The wrapper repeats .footer-nav's grid
+   (same max-width, columns and gap) so the first column, and therefore its centre line, is exactly Explore's. The type is the nav's at
+   about 80% size, in the wordmark's "LAX" blue; 4px of block padding makes a tap target and gives the same row pitch as the nav items. */
+.footer-account { display: grid; grid-template-columns: 1fr 1fr; gap: 0 5vw; width: 100%; max-width: 860px; margin-bottom: clamp(26px, 5vh, 48px); text-align: center; }
+.footer-account > div { display: flex; flex-direction: column; align-items: center; }
+.footer-account a { padding: 4px; color: var(--blue-deep); font: 800 clamp(14px, 2.2vw, 24px)/1.15 var(--font-body); letter-spacing: -.01em; text-transform: uppercase; -webkit-text-stroke: .03em currentColor; transition: color .25s ease; }
+@media (hover: hover) { .footer-account a:hover { color: var(--ink); } }
+.footer-account a:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 4px; }
+
+/* 3. Branding. Letter-spacing leaves trailing space after the last glyph (negative on the wordmark),
+   which pushes the visible ink off-centre. Padding on the opposite side cancels it so the ink is centred. */
+.footer-brand { width: 100%; }
+.footer-wordmark { display: block; padding-right: .13em; font: 800 clamp(4rem, 8vw, 8rem)/.72 var(--font-display); letter-spacing: -.13em; text-align: center; }
+.footer-wordmark em { color: var(--blue-deep); font-style: normal; }
+
+/* 4. Visual anchor. */
+/* Draggable footer logo (components/DraggableFooterLogo.tsx). The wrapper is what moves; the SVG fills it.
+   Colour: white + difference blend gives the inverse of whatever is behind the logo, so it stays high-contrast
+   over the cream panel, the ink nav and CTA, and the blue wordmark. Touch-action none hands touches to the drag code. */
+.footer-logo-drag { position: relative; width: clamp(170px, 52vw, 340px); margin-top: clamp(56px, 10vh, 96px); color: #fff; mix-blend-mode: difference; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; will-change: transform; }
+.footer-logo-drag.is-dragging { cursor: grabbing; }
+.footer-logo-svg { display: block; width: 100%; height: auto; overflow: visible; pointer-events: none; }
+
+/* 5. Action button: a third of the panel on mobile, a fixed max-width on desktop. */
+.footer-cta { display: flex; align-items: center; justify-content: center; width: 33.333%; min-height: 44px; margin-top: clamp(36px, 6vh, 56px); padding: 0 8px; border-radius: 999px; background: var(--ink); color: var(--cream); font: 800 11px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; text-align: center; transition: background .25s ease, color .25s ease; }
+.footer-cta svg { flex: none; width: 1.5em; height: 1.5em; margin-left: .7em; transition: transform .25s ease; }
+@media (hover: hover) { .footer-cta:hover { background: var(--blue-deep); } .footer-cta:hover svg { transform: translate(2px, -2px); } }
+.footer-cta:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 4px; }
+@media (min-width: 761px) { .footer-cta { width: 100%; max-width: 220px; min-height: 52px; font-size: 12px; } }
+
+/* Legal bar: outside and below the panel, on the footer gradient. */
+.footer-legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px clamp(14px, 3vw, 32px); margin-top: clamp(18px, 3vw, 28px); font: 10px/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.footer-legal a { font-weight: 700; }
+.footer-legal a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.footer-legal a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.footer-note { max-width: 1150px; margin: 44px auto 0; color: rgba(17,17,18,.56); font: 10px/1.7 var(--font-mono); letter-spacing: .06em; }
+
+/* ---------- The gap: pinned, scroll-scrubbed sequence + curtain (driven by hooks/useGapSequence.ts) ----------
+   #the-gap stacks three layers:
+     .gap-stage    the illustration, position: sticky and one viewport tall: the fixed background canvas.
+     .gap-space    an empty spacer: the extra distance the stage stays pinned while the later steps play.
+     .gap-curtain  "The gap" copy: a full-viewport panel in normal flow, z-index above the stage. After the spacer
+                   it rises from the bottom of the viewport and covers the stage completely. Native scroll moves it,
+                   so the curtain is tied 1:1 to scroll progress.
+   The stage stays pinned for the whole section (sticky is bounded by the section, which ends with the curtain),
+   so it is still there, fixed, under the curtain all the way up. useGapSequence writes one 0 → 1 variable per
+   phase onto the section; the zeros below are the opening state (the grid content cut into two separated
+   halves, schedule hidden).
+
+   The card, its background and the copy are static — never translated. Only the internal grid content
+   moves: two clipped panes holding the same grid. The 6P–12P grid block sits centred in the card, so the cut
+   at its midpoint — exactly between the 12A and 6A grid lines — is the centre line of the split. */
+.gap-section {
+  --split: 14%; /* how far each pane starts from its resting place, of the grid's width */
+  --merge: 0;
+  --b1-line: 0; --b1-fill: 0; --b1-text: 0;
+  --b2-line: 0; --b2-fill: 0; --b2-text: 0;
+  --dup1: 0; --dup2: 0; --dy1: 0px; --dy2: 0px; --tint: 0;
+  --clash-line: 0; --clash-fill: 0;
+  --flag: 0; --note: 0;
+  /* Scroll pacing: one scroll step = one phase = --gap-phase of scrolling. Five steps, plus a short tail
+     (see TAIL in the hook, which writes --gap-span as lead + 5 + tail, in phases; the merge opens the timeline). */
+  --gap-phase: clamp(220px, 30svh, 360px);
+  --gap-span: 5.4;
+  /* Scroll between the timeline starting (the split grid coming into view) and the pin beginning. The hook measures
+     it and writes it here; the pinned spacer is the rest of the timeline. The fallback only holds until it does. */
+  --gap-lead: 0px;
+  --gap-pin: max(0px, calc(var(--gap-phase) * var(--gap-span) - var(--gap-lead)));
+  position: relative;
+}
+.gap-stage { position: sticky; top: 0; z-index: 1; display: flex; justify-content: center; height: 100vh; height: 100svh; background: var(--ink); }
+.gap-space { height: var(--gap-pin); }
+.gap-curtain { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; min-height: 100svh; padding: max(96px, 12svh) 6.7vw max(72px, 10svh); }
+.gap-curtain-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6vw; width: 100%; max-width: 1150px; margin: 0 auto; }
+.gap-curtain-inner .section-eyebrow { grid-column: 1 / -1; }
+.gap-curtain-inner .display-heading { margin-top: 12vh; }
+.gap-curtain-copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; }
+.gap-curtain-copy .large-copy { margin: 0 0 3vh; }
+
+/* A. Split and B. merge: the grid content is two complementary clips of the same grid, cut at its midpoint
+   (between the 12A and 6A grid lines). Each pane starts `--split` outward of its resting place and slides
+   inward to it; the left pane holds everything from 6P through the 12A line for all three app rows, the right
+   pane the 6A line through 12P. The clips overlap by 1px, so merged they never show a seam. The frames
+   (background texture, edges) and the copy stay exactly where they are. */
+.gap-shift { position: relative; display: flex; width: min(100%, max(56vw, 560px)); }
+.gap-stage .visual-fill { padding-block: max(92px, 12vh); }
+.gap-lanes { position: relative; margin-inline: 5% -5%; } /* centres the 6P–12P grid block in the card */
+.gap-pane-left,
+.gap-pane-right { will-change: transform; }
+.gap-pane-left { position: relative; clip-path: inset(0 calc(55% - 1px) 0 0); transform: translate3d(calc(var(--split) * (1 - var(--merge)) * -1), 0, 0); }
+.gap-pane-right { position: absolute; inset: 0; clip-path: inset(0 0 0 calc(45% - 1px)); transform: translate3d(calc(var(--split) * (1 - var(--merge))), 0, 0); }
+
+/* Primary titles for the illustration: display face, heavy, sentence case. */
+.gap-head { display: flex; flex-direction: column; gap: .3em; }
+.gap-title { margin: 0; color: var(--cream); font: 800 clamp(1.9rem, 3.1vw, 3.3rem)/.95 var(--font-display); letter-spacing: -.06em; }
+.gap-title-sub { color: var(--blue); font-size: clamp(1.2rem, 1.9vw, 2rem); }
+
+/* C. Bars draw an outline, then fill, then show their label. Outlines are SVG rects with pathLength=1, so one
+   dash offset (0 = fully drawn) works whatever the bar's width. The svg clips its own overflow, so a 3px
+   stroke leaves 1.5px visible inside the bar. */
+.gap-bar { position: absolute; top: 6px; bottom: 6px; color: var(--ink); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.gap-bar-1 { --bar-line: var(--b1-line); --bar-fill: var(--b1-fill); --bar-text: var(--b1-text); --bar-color: var(--cream); }
+.gap-bar-2 { --bar-line: var(--b2-line); --bar-fill: var(--b2-fill); --bar-text: var(--b2-text); --bar-color: var(--blue); }
+.gap-bar-fill { position: absolute; inset: 0; background: var(--bar-color); clip-path: inset(0 calc((1 - var(--bar-fill)) * 100%) 0 0); }
+.gap-bar-text { position: relative; display: flex; align-items: center; gap: 8px; height: 100%; padding: 0 10px; overflow: hidden; opacity: var(--bar-text); transform: translate3d(0, calc((1 - var(--bar-text)) * 5px), 0); }
+.gap-bar-text small { font: 9px var(--font-mono); letter-spacing: .08em; opacity: .6; }
+.gap-outline { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: min(1, calc(var(--bar-line, var(--clash-line)) * 999)); }
+.gap-outline rect { fill: none; stroke: var(--bar-color, var(--cream)); stroke-width: 3; stroke-dasharray: 1px 1px; stroke-dashoffset: calc((1 - var(--bar-line, var(--clash-line))) * 1px); }
+
+/* D. The duplicates sit exactly on their source bar, then travel down to the Phylax lane. Bar 2 lands last, on top. */
+.gap-bar.is-dup { --bar-line: 1; --bar-fill: 1; --bar-text: 1; }
+.gap-bar-1.is-dup { z-index: 3; opacity: min(1, calc(var(--dup1) * 999)); transform: translate3d(0, calc(var(--dy1) * (1 - var(--dup1))), 0); }
+.gap-bar-2.is-dup { z-index: 4; opacity: min(1, calc(var(--dup2) * 999)); transform: translate3d(0, calc(var(--dy2) * (1 - var(--dup2))), 0); }
+.gap-bar.is-dup .gap-bar-text { padding-left: calc(10px + var(--pad-x, 0%) * var(--dup2)); }
+.gap-tint { position: absolute; top: 6px; bottom: 6px; z-index: 5; background: var(--overlap); opacity: var(--tint); }
+
+/* E. The overlap bar draws its outline, then fills with stripes that keep marching. The gradient tile is a whole
+   number of pixels, so shifting it by one tile per cycle loops without a seam. */
+.gap-clash { position: absolute; top: 0; bottom: 0; z-index: 6; }
+.gap-clash .gap-outline { --bar-color: var(--cream); }
+.gap-clash-fill { position: absolute; inset: 0; background: linear-gradient(135deg, var(--ink) 25%, var(--blue) 25% 50%, var(--ink) 50% 75%, var(--blue) 75%) 0 0 / 12px 12px; clip-path: inset(0 calc((1 - var(--clash-fill)) * 100%) 0 0); animation: gap-stripes .9s linear infinite; }
+@keyframes gap-stripes { to { background-position: 12px 0; } }
+
+/* F. Caption: the label, then the supporting line. */
+.gap-flag { opacity: var(--flag); transform: translate3d(0, calc((1 - var(--flag)) * 6px), 0); }
+.gap-note { opacity: var(--note); transform: translate3d(0, calc((1 - var(--note)) * 8px), 0); }
+
+/* Reduced motion: no pin, no travel, no curtain. Show the finished diagram in place, then the copy below it. */
+@media (prefers-reduced-motion: reduce) {
+  .gap-section { --split: 0%; --merge: 1; --b1-line: 1; --b1-fill: 1; --b1-text: 1; --b2-line: 1; --b2-fill: 1; --b2-text: 1; --dup1: 1; --dup2: 1; --tint: 1; --clash-line: 1; --clash-fill: 1; --flag: 1; --note: 1; }
+  .gap-stage { position: relative; height: auto; min-height: 780px; }
+  .gap-space { display: none; }
+  .gap-curtain { min-height: 0; }
+  .gap-pane-left, .gap-pane-right { will-change: auto; }
+}
+
+/* ---------- Phylax product visuals: stand in for the template's photography ---------- */
+.visual { display: flex; flex-direction: column; gap: 22px; padding: 22px; background: #18191b; border: 1px solid var(--line-dark); color: var(--cream); }
+.visual-fill { flex: 1; justify-content: center; gap: 44px; padding: 14vh 6.7vw; background: var(--ink); border: 0; }
+.v-head { display: flex; justify-content: space-between; gap: 12px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.v-alert { display: inline-flex; align-items: center; gap: 8px; color: var(--blue); }
+.v-foot { color: var(--cream-muted); font: 9px/1.6 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.v-title { font: 800 clamp(2rem, 3.2vw, 3.4rem)/.85 var(--font-display); letter-spacing: -.08em; text-transform: uppercase; }
+.v-rows { border-bottom: 1px solid var(--line-dark); }
+.v-rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-dark); font-size: 12px; }
+.v-rows > div span:last-child { color: var(--cream-muted); font: 10px var(--font-mono); letter-spacing: .08em; white-space: nowrap; }
+.v-checks > div { align-items: center; justify-content: flex-start; }
+.v-checks > div span:last-child { margin-left: auto; color: var(--blue); }
+.v-check { display: inline-grid; place-items: center; flex: none; width: 16px; height: 16px; border: 1px solid var(--blue); color: var(--blue); }
+.v-text { margin: 0; font-size: 14px; line-height: 1.25; }
+.v-step-label { color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 7px 10px; border: 1px solid var(--line-dark); font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.chip-on { color: var(--ink); background: var(--blue); border-color: var(--blue); }
+
+.v-save { padding: 13px; color: var(--ink); background: var(--blue); text-align: center; font: 700 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; }
+.lanes { display: flex; flex-direction: column; gap: 18px; }
+.lane-axis { position: relative; height: 12px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .1em; }
+.lane-axis span { position: absolute; top: 0; transform: translateX(-50%); }
+.lane-axis span:first-child { transform: none; }
+.lane { display: flex; flex-direction: column; gap: 8px; }
+.lane-label { display: flex; justify-content: space-between; gap: 12px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.lane-flag { color: var(--blue); }
+.lane-track { position: relative; height: 46px; background-image: linear-gradient(90deg, var(--line-dark) 1px, transparent 1px); background-size: 30% 100%; }
+.lane-bar { position: absolute; top: 6px; bottom: 6px; display: flex; align-items: center; gap: 8px; padding: 0 10px; overflow: hidden; color: var(--ink); background: var(--cream); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.lane-bar small { font: 9px var(--font-mono); letter-spacing: .08em; opacity: .6; }
+.lane-bar-blue { background: var(--blue); }
+.lane-clash { position: absolute; top: 0; bottom: 0; border: 1px solid var(--cream); background: repeating-linear-gradient(135deg, var(--ink) 0 3px, var(--blue) 3px 6px); }
+
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity .9s var(--ease), transform .9s var(--ease); }
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 760px) {
+  :root { --nav-h: 66px; --nav-pad: 18px; }
+  .global-nav { height: 66px; padding: 0 18px; }
+  .brand-name { display: none; }
+  .nav-center { display: none; }
+  .nav-store { display: none; }
+  .menu-panel { padding: 100px 22px 24px; }
+  .menu-links button { grid-template-columns: 38px 1fr 24px; padding: 17px 0; font-size: 2.8rem; }
+  .hero-section { min-height: 720px; height: 100svh; }
+  .hero-backdrop { background-position: 62% center; }
+  .hero-wash { background: linear-gradient(90deg, rgba(var(--wash),.85), rgba(var(--wash),.2)), linear-gradient(0deg, rgba(var(--wash),.65), transparent 45%); }
+  .hero-content { padding: 104px 22px 70px; }
+  .hero-brand { top: 96px; }
+  .hero-wordmark { letter-spacing: .42em; }
+  .hero-wordmark span { margin-right: -.42em; }
+  .hero-title { margin-bottom: 2.2rem; font-size: clamp(4.65rem, 19vw, 7rem); }
+  .mobile-fit-hero-heading { font-size: clamp(3.25rem, 13vw, 6.5rem); }
+  .mobile-fit-heading { font-size: clamp(3.25rem, 13vw, 10rem); }
+  .hero-title em { margin-left: 9vw; }
+  .hero-footer p { max-width: 190px; font-size: 13px; }
+  .round-arrow { width: 52px; height: 52px; }
+  .hero-vertical-label { display: none; }
+  .hero-signal { left: 22px; bottom: 22px; }
+  .marquee-section { min-height: 28vh; }
+  .marquee-row { font-size: 3.2rem; }
+  .story-section, .calendar-section, .journal-section, .helmet-section, .callout-section { padding-right: 22px; padding-left: 22px; }
+  .story-intro-grid { display: block; margin-top: 12vh; }
+  .story-copy { margin: 7vh 0 0; }
+  .story-images { gap: 18px; margin: 11vh -22px 0; padding: 0 22px; overflow-x: auto; scrollbar-width: none; }
+  .story-images::-webkit-scrollbar { display: none; }
+  .story-card-large { width: 84vw; }
+  .story-card-tall { width: 66vw; margin-top: 13vw; }
+  .story-card-medium { width: 72vw; margin-top: 5vw; }
+  .story-card .visual { min-height: 0; }
+  .visual-fill { padding: 64px 52px 64px 22px; gap: 34px; }
+  .story-caption { margin-top: 13vh; font-size: 2.6rem; }
+  /* Stacked: only the illustration is pinned (a phone can't hold both halves); the copy rises over it as a curtain.
+     The split push is smaller than on desktop so both halves stay on-card on a narrow screen. */
+  .gap-section { --split: 6.5%; }
+  .gap-shift { width: 100%; }
+  .gap-stage .visual-fill { padding: 88px 22px 40px; } /* symmetric inline padding keeps the grid block centred */
+  .gap-curtain { padding: 72px 22px 80px; }
+  .gap-curtain-inner { display: block; }
+  .gap-curtain-inner .display-heading { margin-top: 10vh; }
+  .gap-curtain-copy .large-copy { margin: 7vh 0 3vh; }
+  .large-copy { margin-top: 7vh; }
+  .calendar-head { margin-bottom: 9vh; }
+  .calendar-title-row { flex-wrap: wrap; gap: 28px; margin-top: 12vh; }
+  .calendar-meta { text-align: left; }
+  .calendar-row { grid-template-columns: 32px 68px 1fr 22px; gap: 8px; padding: 22px 0; }
+  .calendar-detail p { padding-left: 40px; }
+  .race-place { font-size: 18px; }
+  .race-time { display: none; }
+  .stats-section { padding: 42px 22px 22px; }
+  .stats-grid { display: block; margin: 11vh 0 13vh; }
+  .stat-block { margin-bottom: 55px; }
+  .stat-block strong { font-size: 8rem; }
+  .stats-foot { display: block; line-height: 2; }
+  .stats-foot span { display: block; }
+  .journal-header .display-heading { margin-top: 10vh; }
+  .journal-intro { position: static; margin: 7vh 0 0; }
+  .journal-grid { display: block; }
+  .journal-feature, .journal-card { min-height: 430px; margin-bottom: 16px; }
+  .sms { justify-content: flex-start; padding: 22px 22px 84px; }
+  .sms-msg p { font-size: 14px; }
+  .helmet-heading { display: block; margin-bottom: 9vh; }
+  .helmet-heading .large-copy { margin-top: 7vh; }
+  .helmet-grid { grid-template-columns: repeat(2, 1fr); gap: 22px 12px; }
+  .helmet-info { font-size: 8px; }
+  .tile { padding: 12px; }
+  .tile-time { font-size: 2.4rem; }
+  .callout-section { display: block; min-height: 660px; padding-top: 12vh; }
+  .mx-zone > .callout-section { padding-top: 16vh; }
+  .pricing-cycle { width: 96px; margin: 0 auto 4vh; }
+  .callout-aside { margin-top: 15vh; }
+  .callout-word { font-size: 5.4rem; }
+  .mobile-fit-callout-heading { font-size: clamp(4.25rem, 17vw, 5.4rem); }
+  .footer-shape { --tab-top: 8px; --tab-bottom: 14px; }
+  .footer-bar { margin-bottom: 10px; }
+  .footer-shape-content { border-radius: 8px; }
+  .footer-marquee-group { padding-block: 14px; font-size: 13px; }
+  .footer-body { padding-inline: 16px; }
+  .footer-cta { width: calc((100% + 32px) / 3); } /* a third of the panel: content width plus both 16px side paddings */
+  .footer-nav { gap: 0 12px; margin-bottom: 20px; }
+  .footer-account { gap: 0 12px; margin-bottom: 32px; }
+  .footer-wordmark { font-size: 3.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+  .reveal { opacity: 1; transform: none; }
+  .footer-marquee-track { width: auto; animation: none; }
+  .footer-marquee-group { min-width: 0; padding-inline: 1.4em; white-space: normal; text-align: center; line-height: 1.6; }
+  .footer-marquee-group[aria-hidden="true"] { display: none; }
+}
+
+/* ---------- Three-tap demo (How it works, card 01) ----------
+   Driven by TapDemo.tsx: data-step plus .is-saved / .is-flagged on the root, and .is-out / .is-reset for the loop's fade. */
+.tap-demo { --tap-num: 84px; container-type: inline-size; transition: border-color .35s ease; }
+.tap-demo.is-flagged { border-color: var(--blue); }
+.tap-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; opacity: 1; transition: opacity .35s ease; }
+.tap-demo.is-out .tap-body, .tap-demo.is-reset .tap-body { opacity: 0; }
+/* While hidden between loops, snap everything back with no visible motion. */
+.tap-demo.is-reset .tap-body, .tap-demo.is-reset .tap-body * { transition: none !important; animation: none !important; }
+.tap-timer { color: var(--blue); font-variant-numeric: tabular-nums; }
+
+.tap-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.tap-count { height: var(--tap-num); padding-right: .14em; overflow: hidden; transform: rotate(-8deg); transform-origin: 0 100%; font: 800 80px/var(--tap-num) var(--font-display); letter-spacing: -.1em; color: var(--blue); }
+.tap-count-stack { transition: transform .5s var(--ease); }
+.tap-count-stack span { display: block; height: var(--tap-num); }
+.tap-count-stack .is-zero { color: transparent; -webkit-text-stroke: 1.5px var(--blue); }
+.tap-say { max-width: 190px; min-height: 2.9em; margin: 0; padding-bottom: 8px; color: var(--cream-muted); font: 9px/1.6 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; text-align: right; transition: color .3s ease; }
+.tap-say span { display: block; animation: tap-say-in .35s var(--ease) both; }
+.tap-demo.is-flagged .tap-say { color: var(--cream); }
+@keyframes tap-say-in { from { opacity: 0; transform: translateY(6px); } }
+
+.tap-ctrls { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.tap-demo .chip { transition: background .2s ease, color .2s ease, border-color .2s ease; }
+.tap-tile { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 11px 12px; border: 1px solid var(--line-dark); color: var(--cream); transition: background .25s ease, color .25s ease, border-color .25s ease; }
+.tap-tile strong { font: 600 16px/1 var(--font-display); letter-spacing: -.06em; text-transform: uppercase; }
+.tap-tile span { font: 9px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
+.tap-tile.is-on { color: var(--ink); background: var(--cream); border-color: var(--cream); }
+.tap-save { padding: 12px; border: 1px solid var(--line-dark); color: var(--cream-muted); text-align: center; font: 700 10px var(--font-mono); letter-spacing: .14em; text-transform: uppercase; opacity: .45; transition: opacity .25s ease, background .25s ease, color .25s ease, border-color .25s ease; }
+.tap-save.is-ready { opacity: 1; color: var(--ink); background: var(--blue); border-color: var(--blue); }
+.tap-save.is-done { opacity: 1; color: var(--ink); background: var(--cream); border-color: var(--cream); }
+@keyframes tap-press { 40% { transform: scale(.965); } }
+.tap-demo[data-step="1"] .t1, .tap-demo[data-step="2"] .t2, .tap-demo[data-step="3"] .t3 { animation: tap-press .32s ease; }
+
+/* The finger glides between targets; each tap leaves a ring behind at that spot. */
+.tap-finger { position: absolute; left: 0; top: 0; z-index: 3; width: 0; height: 0; opacity: 0; pointer-events: none; transform: translate(var(--fx, 0px), var(--fy, 0px)); transition: transform .42s var(--ease), opacity .2s ease; }
+.tap-finger.is-on { opacity: 1; }
+.tap-dot, .tap-ring { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; pointer-events: none; }
+.tap-dot { background: rgba(245,241,234,.94); box-shadow: 0 0 0 1.5px var(--ink), 0 4px 14px rgba(0,0,0,.45); animation: tap-dot-press .4s ease; }
+.tap-ring { z-index: 2; border: 1px solid var(--blue); animation: tap-ring .7s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes tap-dot-press { 30% { transform: scale(.6); } }
+@keyframes tap-ring { from { transform: scale(.8); opacity: 1; } to { transform: scale(4.2); opacity: 0; } }
+
+.tap-demo .lanes { gap: 12px; }
+.tap-demo .lane-track { height: 36px; }
+.tap-demo .lane-bar { top: 5px; bottom: 5px; }
+.tap-pair { position: relative; display: flex; flex-direction: column; gap: 12px; }
+.tap-bar-night { clip-path: inset(0 100% 0 0); transition: clip-path .5s var(--ease) .08s; }
+.tap-demo.is-saved .tap-bar-night { clip-path: inset(0 0 0 0); }
+.tap-band { position: absolute; top: 0; bottom: 0; z-index: 2; border-left: 1px dashed var(--blue); border-right: 1px dashed var(--blue); background: rgba(122,147,168,.18); opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.tap-demo.is-flagged .tap-band { opacity: 1; }
+.tap-demo .lane-flag { opacity: 0; transition: opacity .25s ease; }
+.tap-demo.is-flagged .lane-flag { opacity: 1; }
+.tap-clash { transform: scaleY(0); transform-origin: 50% 100%; transition: transform .28s cubic-bezier(.2,1.5,.4,1); }
+.tap-demo.is-flagged .tap-clash { transform: none; }
+
+/* On very narrow cards the CareRev bar has no room for its time label; the axis already shows it. */
+@container (max-width: 285px) { .tap-demo .lane-bar-blue small { display: none; } }
+
+@media (max-width: 760px) {
+  .tap-demo { --tap-num: 72px; }
+  .tap-count { font-size: 68px; }
+}
+
+/* Round arrows: keep the end states, drop the movement between them. */
+@media (prefers-reduced-motion: reduce) {
+  .round-arrow, .round-arrow svg { transition: color .25s ease, background .25s ease; }
+}

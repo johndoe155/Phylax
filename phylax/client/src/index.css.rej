@@ -1,0 +1,43 @@
+--- client/src/index.css	2026-10-14 16:38:12.000000000 +0000
++++ home/claude/work/phylax/client/src/index.css	2026-10-14 17:08:01.329123904 +0000
+@@ -159,8 +159,19 @@
+ .hero-footer { display: flex; align-items: end; justify-content: space-between; max-width: 590px; }
+ .hero-footer p { max-width: 270px; margin: 0; color: var(--cream); font-size: 15px; line-height: 1.25; letter-spacing: -.025em; }
+ .accent-word { color: var(--blue); }
+-.round-arrow { display: grid; place-items: center; width: 62px; height: 62px; border: 1px solid var(--cream); border-radius: 50%; transition: color .25s ease, background .25s ease, transform .25s var(--ease); }
+-.round-arrow:hover { color: var(--ink); background: var(--cream); transform: rotate(45deg); }
++/* Round arrow buttons (hero + footer). Two layers move independently, both on transform only (compositor-friendly):
++   the button itself is the container that dips / lifts on click, and its svg is the arrow that rotates.
++   Click state comes from data-active (Home.tsx, useTimedActive), which holds while the page scrolls.
++   --arrow-ease is deliberately gentler than the site's --ease: that curve does almost all of its travel in the first
++   third of the duration, which makes a 45deg turn look like a snap. */
++.round-arrow { --arrow-ease: cubic-bezier(.4, 0, .2, 1); --arrow-dur: .6s; display: grid; place-items: center; width: 62px; height: 62px; border: 1px solid var(--cream); border-radius: 50%; transition: color .25s ease, background .25s ease, transform var(--arrow-dur) var(--arrow-ease); }
++.round-arrow:hover, .round-arrow[data-active="true"] { color: var(--ink); background: var(--cream); }
++.round-arrow svg { display: block; transition: transform var(--arrow-dur) var(--arrow-ease); }
++/* Hero: on click the arrow (down-right at rest) turns to face straight down and the whole button dips. The old hover
++   tilt is gone: the hover blob (useBlobReveal) paints an inverted twin of the hero over the button, and the twin can't
++   be hovered, so the tilt was hidden and the click had nothing left to show. */
++.hero-footer .round-arrow[data-active="true"] svg { transform: rotate(45deg); }
++.hero-footer .round-arrow[data-active="true"] { transform: translateY(3px); }
+ .hero-vertical-label { position: absolute; right: 34px; top: 45%; display: flex; align-items: center; gap: 13px; writing-mode: vertical-rl; transform: rotate(180deg); color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .14em; }
+ .vertical-line { display: block; width: 1px; height: 54px; margin: 9px 0; background: currentColor; opacity: .5; }
+ .hero-signal { position: absolute; left: 6.7vw; bottom: 24px; display: flex; align-items: center; gap: 8px; color: var(--cream-muted); font: 9px var(--font-mono); letter-spacing: .12em; }
+@@ -353,11 +364,14 @@
+ .footer-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+ .site-footer .round-arrow:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+ /* Back-to-top: the arrow takes the ring's own colour (it used to inherit the footer's ink, which vanished on the dark canvas).
+-   The hero's round arrow rotates 45deg on hover; this one stays put and the arrow lifts instead. */
++   At rest the arrow leans left at 45deg; on click it swings upright and the whole button lifts (not just the arrow). */
+ .footer-bar .round-arrow { --ring: var(--cream); border-color: var(--ring); color: var(--ring); }
+-.footer-bar .round-arrow:hover { color: var(--ink); background: var(--cream); transform: none; }
+-.footer-bar .round-arrow svg { transition: transform .25s var(--ease); }
+-.footer-bar .round-arrow:hover svg, .footer-bar .round-arrow:focus-visible svg { transform: translateY(-3px); }
++/* Filled state (hover, and while clicked): ink arrow on the cream fill. Needs the extra specificity, otherwise the
++   --ring colour above wins and the arrow vanishes into its own fill. */
++.footer-bar .round-arrow:hover, .footer-bar .round-arrow[data-active="true"] { color: var(--ink); background: var(--cream); }
++.footer-bar .round-arrow svg { transform: rotate(-45deg); }
++.footer-bar .round-arrow[data-active="true"] { transform: translateY(-3px); }
++.footer-bar .round-arrow[data-active="true"] svg { transform: rotate(0deg); }
+ .footer-shape { --tab-top: 10px; --tab-bottom: 22px; position: relative; padding: var(--tab-top) 0 var(--tab-bottom); color: var(--ink); }
+ .footer-shape-bg { position: absolute; left: 0; top: 0; display: block; overflow: visible; fill: var(--cream); pointer-events: none; shape-rendering: geometricPrecision; }
+ /* Content box is flush with the panel so the marquee can run edge to edge; it clips to the panel's corner radius (10px, 8px when compact). */

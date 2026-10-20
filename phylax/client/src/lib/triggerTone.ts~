@@ -1,0 +1,221 @@
+/**
+ * Colour engine for the menu trigger.
+ *
+ * Two deliberately different modifications of the same sampled backdrop colour, plus one fixed brand colour:
+ *
+ *   stroke  = direct inversion        (255 - channel), nudged only if it would be illegible
+ *   fill    = OKLCH re-tone           (hue rotated + chroma added + lightness pulled toward the middle),
+ *                                      then pushed until it holds a legible contrast against the stroke
+ *   accent  = the third colour        (fixed: the inversion of the site's blue)
+ *
+ * So the fill is always recognisably "the page colour, but different", never the inversion itself,
+ * the glyph drawn on it is always legible, and the accent is the brand-derived colour that sweeps in first
+ * and then lifts away, outlining the fill for as long as it does.
+ */
+
+export type RGB = { r: number; g: number; b: number };
+type RGBA = RGB & { a: number };
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/* ---------- sRGB / OKLab maths ---------- */
+
+const toLin = (c: number) => {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+const fromLin = (v: number) => 255 * (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+
+export function luminance({ r, g, b }: RGB) {
+  return 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+}
+
+export function contrast(a: RGB, b: RGB) {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+export function toOklch({ r, g, b }: RGB) {
+  const R = toLin(r), G = toLin(g), B = toLin(b);
+  const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B);
+  const m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B);
+  const s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+  const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+  return { L, C: Math.hypot(a, bb), h: ((Math.atan2(bb, a) * 180) / Math.PI + 360) % 360 };
+}
+
+/** OKLCH -> sRGB. Chroma is reduced until the colour fits the sRGB gamut, so hue and lightness survive. */
+export function fromOklch(L: number, C: number, h: number): RGB {
+  const hr = (h * Math.PI) / 180;
+  let c = C;
+  for (let i = 0; i < 28; i++) {
+    const a = c * Math.cos(hr), b = c * Math.sin(hr);
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    const lin = [
+      4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+      -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+      -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+    ];
+    if (lin.every((v) => v >= -0.0005 && v <= 1.0005) || c < 0.0005) {
+      return { r: fromLin(clamp(lin[0], 0, 1)), g: fromLin(clamp(lin[1], 0, 1)), b: fromLin(clamp(lin[2], 0, 1)) };
+    }
+    c *= 0.88;
+  }
+  const v = fromLin(clamp(L, 0, 1));
+  return { r: v, g: v, b: v };
+}
+
+export const invert = ({ r, g, b }: RGB): RGB => ({ r: 255 - r, g: 255 - g, b: 255 - b });
+export const css = ({ r, g, b }: RGB) => `rgb(${Math.round(r)} ${Math.round(g)} ${Math.round(b)})`;
+
+/**
+ * Moves `fg` along the lightness axis (keeping its hue and chroma) until it reaches `min` contrast against
+ * `against`. Heads for whichever end of the scale can actually reach higher contrast. Only does anything in the
+ * mid-tone zone, where a pure inversion lands on almost the same lightness as its own background.
+ */
+export function ensureContrast(fg: RGB, against: RGB, min: number): RGB {
+  if (contrast(fg, against) >= min) return fg;
+  const { L, C, h } = toOklch(fg);
+  const toWhite = contrast({ r: 255, g: 255, b: 255 }, against);
+  const toBlack = contrast({ r: 0, g: 0, b: 0 }, against);
+  const dir = toWhite >= toBlack ? 1 : -1;
+  let best = fg;
+  for (let l = L; l >= 0 && l <= 1; l += dir * 0.015) {
+    best = fromOklch(l, C, h);
+    if (contrast(best, against) >= min) break;
+  }
+  return best;
+}
+
+/** Brand steel-blue hue (≈ #7A93A8). Used to tint neutral backdrops, which have no hue of their own. */
+const BRAND_HUE = 245;
+
+export interface Tone {
+  /** The backdrop that was sampled. */
+  bg: RGB;
+  /** Glyph + outline colour: the direct inversion of `bg`. */
+  stroke: RGB;
+  /** Disc colour: a *different* modification of `bg` — never the inversion. */
+  fill: RGB;
+  /** Third colour: the inverse of the site's blue. Floods the button first, then leaves as a brief outline around the disc. */
+  accent: RGB;
+  /** Glyph colour while it sits on the third colour. */
+  onAccent: RGB;
+}
+
+/**
+ * The site's blue (`--blue`, #7A93A8) and its direct inversion, rgb(133 108 87). The inversion is the colour the resting
+ * button already wears on the blue sections, so it is the third colour: it belongs to the identity rather than being
+ * generated per backdrop.
+ */
+export const BRAND_BLUE: RGB = { r: 0x7a, g: 0x93, b: 0xa8 };
+export const ACCENT: RGB = invert(BRAND_BLUE);
+
+const CREAM: RGB = { r: 245, g: 241, b: 234 };
+const INK: RGB = { r: 17, g: 17, b: 18 };
+
+/**
+ * The colour the glyph wears while it is *on top of* the third colour (stages 1 and 2 only). Normally that is just the
+ * stroke colour; but on the blue sections the stroke colour IS the third colour, and the glyph would vanish into it,
+ * so it borrows whichever of cream / ink reads better.
+ */
+function glyphOnAccent(stroke: RGB): RGB {
+  if (contrast(stroke, ACCENT) >= 3) return stroke;
+  return contrast(CREAM, ACCENT) >= contrast(INK, ACCENT) ? CREAM : INK;
+}
+
+export function deriveTone(bg: RGB): Tone {
+  // 1 ── stroke: pure inversion, with a floor so it can't disappear against its own backdrop.
+  const stroke = ensureContrast(invert(bg), bg, 3);
+
+  // 2 ── fill: re-tone the backdrop in OKLCH.
+  const { L, C, h } = toOklch(bg);
+  const neutral = C < 0.02;
+  const hue = neutral ? BRAND_HUE : (h + 28) % 360;
+  const chroma = clamp(C + 0.05, 0.055, 0.12);
+  // Pull lightness toward the middle by a fixed step: a dark page gives a lifted slate, a pale page a deeper mist.
+  let Lf = clamp(L + (L < 0.6 ? 0.17 : -0.17), 0.06, 0.97);
+
+  // 3 ── make sure the stroke reads on the fill. Walk lightness away from the stroke until it does.
+  const strokeLum = luminance(stroke);
+  const strokeIsLighter = strokeLum > luminance(fromOklch(Lf, chroma, hue));
+  // If the stroke is mid-tone, head for whichever end of the scale gives more room.
+  const dir =
+    strokeLum > 0.18 && strokeLum < 0.4
+      ? (contrast({ r: 255, g: 255, b: 255 }, stroke) >= contrast({ r: 0, g: 0, b: 0 }, stroke) ? 1 : -1)
+      : strokeIsLighter ? -1 : 1;
+  let fill = fromOklch(Lf, chroma, hue);
+  for (let i = 0; i < 60 && contrast(stroke, fill) < 6; i++) {
+    Lf = clamp(Lf + dir * 0.015, 0, 1);
+    fill = fromOklch(Lf, chroma, hue);
+  }
+  return { bg, stroke, fill, accent: ACCENT, onAccent: glyphOnAccent(stroke) };
+}
+
+/* ---------- backdrop sampling ---------- */
+
+let probe: CanvasRenderingContext2D | null = null;
+
+/** Any CSS colour string (rgb, rgba, oklch, color(), color-mix…) -> sRGB + alpha. */
+function parseCss(value: string): RGBA | null {
+  if (!value || value === "transparent" || value === "none") return null;
+  const fast = value.match(/^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:\s*[,/]\s*([\d.]+)(%?))?\s*\)$/);
+  if (fast) {
+    const a = fast[4] === undefined ? 1 : fast[5] ? parseFloat(fast[4]) / 100 : parseFloat(fast[4]);
+    return { r: +fast[1], g: +fast[2], b: +fast[3], a };
+  }
+  // Everything else goes through a 1×1 canvas, which resolves any colour syntax the browser understands.
+  if (!probe) {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    probe = canvas.getContext("2d", { willReadFrequently: true });
+  }
+  if (!probe) return null;
+  probe.clearRect(0, 0, 1, 1);
+  probe.fillStyle = "#000";
+  probe.fillStyle = value;
+  probe.fillRect(0, 0, 1, 1);
+  const [r, g, b, a] = probe.getImageData(0, 0, 1, 1).data;
+  return { r, g, b, a: a / 255 };
+}
+
+const IGNORE = "[data-backdrop-ignore]";
+
+/**
+ * The colour a person actually sees at viewport point (x, y): everything stacked there is composited top-down
+ * until an opaque layer is reached. Layers flagged with `data-backdrop-ignore` (the nav, the trigger, the menu
+ * panel, the grain overlay) are skipped so the trigger never samples itself. Images, gradients and canvases
+ * can't be read back, so they are skipped and the colour beneath them is used.
+ */
+export function sampleBackdrop(x: number, y: number): RGB {
+  const acc = { r: 0, g: 0, b: 0 };
+  let remaining = 1;
+  for (const el of document.elementsFromPoint(x, y)) {
+    if (remaining < 0.01) break;
+    if (el.closest(IGNORE)) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden") continue;
+    const isSvgShape = el instanceof SVGElement && !(el instanceof SVGSVGElement);
+    const c = parseCss(isSvgShape ? cs.fill : cs.backgroundColor);
+    if (!c) continue;
+    const a = clamp(c.a * parseFloat(cs.opacity || "1") * (isSvgShape ? parseFloat(cs.fillOpacity || "1") : 1), 0, 1);
+    if (a <= 0) continue;
+    acc.r += remaining * a * c.r;
+    acc.g += remaining * a * c.g;
+    acc.b += remaining * a * c.b;
+    remaining *= 1 - a;
+  }
+  if (remaining > 0.01) {
+    // Nothing opaque was found; fall back to the document's own background.
+    const root = parseCss(getComputedStyle(document.documentElement).backgroundColor) ?? { r: 17, g: 17, b: 18, a: 1 };
+    acc.r += remaining * root.r;
+    acc.g += remaining * root.g;
+    acc.b += remaining * root.b;
+  }
+  return acc;
+}

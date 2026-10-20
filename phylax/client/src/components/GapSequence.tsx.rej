@@ -1,0 +1,18 @@
+--- client/src/components/GapSequence.tsx
++++ client/src/components/GapSequence.tsx
+@@ -85,10 +85,11 @@ function GapLanes() {
+  * The illustration is a dark card whose time labels (6P, 12A, 6A, 12P), app names and vertical grid lines are
+  * the static base of the scene. Only the internal grid content moves: it is cut at its exact midpoint — between
+  * the 12A and 6A grid lines — into two clipped panes (`.gap-pane-left` holds everything from 6P through the 12A
+- * line for all three app rows, `.gap-pane-right` the 6A line through 12P). The panes start separated by a wide,
+- * empty gap that shows the card's static background, and the first scroll slides them together. They merge
+- * perfectly into the unified grid, centred in the card — and only then does the rest of the sequence (bars,
+- * migration, overlap, captions) begin. The timeline starts as the split grid comes into view.
++ * line for all three app rows, `.gap-pane-right` the 6A line through 12P). The panes start far apart, edge to
++ * edge and slightly enlarged (partly clipped by the viewport), and are bound to scroll from the moment the first
++ * part of them enters the viewport: as it scrolls they slide together while shrinking back to their natural size.
++ * They merge perfectly into the unified grid, centred in the card — and only then does the rest of the sequence
++ * (bars, migration, overlap, captions) begin.
+  */
+ export function GapSequence({ children }: { children: ReactNode }) {
+   const sectionRef = useRef<HTMLElement>(null);
