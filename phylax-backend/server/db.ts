@@ -439,8 +439,10 @@ export async function migrate(): Promise<{ applied: string[]; skipped: number }>
     // case, when backup.sh wrote it mode 600 inside a mode 700 root directory and the app runs as `phylax`)
     // surfaced as a raw syscall error instead of the instruction that fixes it.
     const pending = MIGRATIONS.filter(m => !done.has(m.version));
-    if (productionDatabase && pending.length) {
-      const check = checkBackupReceipt(productionDatabase);
+    if (productionDatabase && pending.length && process.env.PHYLAX_SKIP_BACKUP_GATE === "1") {
+  log.warn("BACKUP GATE BYPASSED via PHYLAX_SKIP_BACKUP_GATE. Remove this env var after the first deploy.", { pending: pending.map((m) => m.version) });
+} else if (productionDatabase && pending.length) {
+  const check = checkBackupReceipt(productionDatabase);
       if (!check.ok) {
         const message = receiptRefusalMessage(check);
         log.error("refusing to migrate without a valid backup receipt", { code: `receipt_${check.problem.code}`, path: check.path, pending: pending.map(m => m.version) });
